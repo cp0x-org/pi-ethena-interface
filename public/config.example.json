@@ -1,0 +1,65 @@
+{
+  "projectId": "7849e5f74edaf36dd455bc07ced4f111",
+  "rpcs": {
+    "ethereum": "",
+    "arbitrum": "",
+    "avalanche": "",
+    "base": "",
+    "berachain": "",
+    "blast": "",
+    "bsc": "",
+    "frax": "",
+    "hyperevm": "",
+    "linea": "",
+    "mantle": "",
+    "metis": "",
+    "mode": "",
+    "optimism": "",
+    "plasma": "",
+    "scroll": "",
+    "zksync": ""
+  },
+  "chainIds": {
+    "hyperevm": 0,
+    "plasma": 0
+  },
+  "layerZero": {
+    "eids": {
+      "ethereum": 30101,
+      "arbitrum": 30110,
+      "avalanche": 30106,
+      "base": 30184,
+      "berachain": 30362,
+      "blast": 30243,
+      "bsc": 30102,
+      "frax": 30255,
+      "hyperevm": 303670,
+      "linea": 30183,
+      "mantle": 30181,
+      "metis": 30151,
+      "mode": 30260,
+      "optimism": 30111,
+      "plasma": 30383,
+      "scroll": 30214,
+      "zksync": 30165
+    },
+    "usdeOftAddresses": {
+      "arbitrum":"0x5d3a1Ff2b6BAb83b63cd9AD0787074081a52ef34",
+      "avalanche": "0x5d3a1Ff2b6BAb83b63cd9AD0787074081a52ef34",
+      "base": "0x5d3a1Ff2b6BAb83b63cd9AD0787074081a52ef34",
+      "berachain": "0x5d3a1Ff2b6BAb83b63cd9AD0787074081a52ef34",
+      "blast": "0x5d3a1Ff2b6BAb83b63cd9AD0787074081a52ef34",
+      "bsc": "0x5d3a1Ff2b6BAb83b63cd9AD0787074081a52ef34",
+      "frax": "0x5d3a1Ff2b6BAb83b63cd9AD0787074081a52ef34",
+      "hyperevm": "0x5d3a1Ff2b6BAb83b63cd9AD0787074081a52ef34",
+      "linea": "0x5d3a1Ff2b6BAb83b63cd9AD0787074081a52ef34",
+      "mantle": "0x5d3a1Ff2b6BAb83b63cd9AD0787074081a52ef34",
+      "metis": "0x5d3a1Ff2b6BAb83b63cd9AD0787074081a52ef34",
+      "mode": "0x5d3a1Ff2b6BAb83b63cd9AD0787074081a52ef34",
+      "optimism": "0x5d3a1Ff2b6BAb83b63cd9AD0787074081a52ef34",
+      "plasma": "0x5d3a1Ff2b6BAb83b63cd9AD0787074081a52ef34",
+      "scroll": "0x5d3a1Ff2b6BAb83b63cd9AD0787074081a52ef34",
+      "zksync": "0x5d3a1Ff2b6BAb83b63cd9AD0787074081a52ef34"
+    }
+  }
+}
