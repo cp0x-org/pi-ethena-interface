@@ -290,7 +290,7 @@ const WithdrawTab = (_props: Props) => {
           <Button
             variant="outlined"
             size="small"
-            onClick={() => handlePercentClick(25, coolingDownDisplay)}
+            onClick={() => handlePercentClick(25, coolingDownAmount ?? 0n)}
             sx={{
               flex: 1,
               bgcolor: activePercentage === 25 ? theme.palette.secondary.main : 'transparent',
@@ -302,7 +302,7 @@ const WithdrawTab = (_props: Props) => {
           <Button
             variant="outlined"
             size="small"
-            onClick={() => handlePercentClick(50, coolingDownDisplay)}
+            onClick={() => handlePercentClick(50, coolingDownAmount ?? 0n)}
             sx={{
               flex: 1,
               bgcolor: activePercentage === 50 ? theme.palette.secondary.main : 'transparent',
@@ -314,7 +314,7 @@ const WithdrawTab = (_props: Props) => {
           <Button
             variant="outlined"
             size="small"
-            onClick={() => handlePercentClick(75, coolingDownDisplay)}
+            onClick={() => handlePercentClick(75, coolingDownAmount ?? 0n)}
             sx={{
               flex: 1,
               bgcolor: activePercentage === 75 ? theme.palette.secondary.main : 'transparent',
@@ -326,7 +326,7 @@ const WithdrawTab = (_props: Props) => {
           <Button
             variant="outlined"
             size="small"
-            onClick={() => handlePercentClick(100, coolingDownDisplay)}
+            onClick={() => handlePercentClick(100, coolingDownAmount ?? 0n)}
             sx={{
               flex: 1,
               bgcolor: activePercentage === 100 ? theme.palette.secondary.main : 'transparent',

@@ -351,7 +351,7 @@ const LockTab = (_props: Props) => {
           <Button
             variant="outlined"
             size="small"
-            onClick={() => handlePercentClick(25, selectedBalanceDisplay)}
+            onClick={() => handlePercentClick(25, tokenMeta.balance)}
             sx={{
               flex: 1,
               bgcolor: activePercentage === 25 ? theme.palette.secondary.main : 'transparent',
@@ -363,7 +363,7 @@ const LockTab = (_props: Props) => {
           <Button
             variant="outlined"
             size="small"
-            onClick={() => handlePercentClick(50, selectedBalanceDisplay)}
+            onClick={() => handlePercentClick(50, tokenMeta.balance)}
             sx={{
               flex: 1,
               bgcolor: activePercentage === 50 ? theme.palette.secondary.main : 'transparent',
@@ -375,7 +375,7 @@ const LockTab = (_props: Props) => {
           <Button
             variant="outlined"
             size="small"
-            onClick={() => handlePercentClick(75, selectedBalanceDisplay)}
+            onClick={() => handlePercentClick(75, tokenMeta.balance)}
             sx={{
               flex: 1,
               bgcolor: activePercentage === 75 ? theme.palette.secondary.main : 'transparent',
@@ -387,7 +387,7 @@ const LockTab = (_props: Props) => {
           <Button
             variant="outlined"
             size="small"
-            onClick={() => handlePercentClick(100, selectedBalanceDisplay)}
+            onClick={() => handlePercentClick(100, tokenMeta.balance)}
             sx={{
               flex: 1,
               bgcolor: activePercentage === 100 ? theme.palette.secondary.main : 'transparent',

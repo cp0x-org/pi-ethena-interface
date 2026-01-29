@@ -100,12 +100,12 @@ export const formatLLTV = (lltv: string): number | null => {
   }
 };
 
-export const formatAssetOutput = (val: string): string => {
+export const formatAssetOutput = (val: string, maxDecimals: number = 18): string => {
   const sanitized = val.replace(/[^0-9.,]/g, '');
   const normalized = sanitized.replace(/,/g, '');
   const [integerPartRaw, decimalPartRaw = ''] = normalized.split('.');
-  const integerPart = integerPartRaw ? Number(integerPartRaw).toLocaleString('en-US') : '';
-  const decimalPart = decimalPartRaw.slice(0, 4);
+  const integerPart = integerPartRaw ? BigInt(integerPartRaw).toLocaleString('en-US') : '';
+  const decimalPart = decimalPartRaw.slice(0, maxDecimals);
   const formattedInteger = integerPart || (sanitized.startsWith('.') ? '0' : '');
 
   if (sanitized.includes('.')) {

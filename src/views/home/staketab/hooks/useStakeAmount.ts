@@ -1,14 +1,32 @@
 import { useCallback, useMemo, useState } from 'react';
-import { parseEther } from 'viem';
+import { formatUnits, parseEther } from 'viem';
 
-import { OUTPUT_DECIMALS, TOKEN_DECIMALS } from '@/appconfig';
-import { formatAssetOutput, formatNumberDisplay, normalizePointAmount } from 'utils/formatters';
+import { TOKEN_DECIMALS } from '@/appconfig';
+import { formatAssetOutput, normalizePointAmount } from 'utils/formatters';
 import { useDebounce } from 'hooks/useDebounce';
 
-const safeDecimal = (value: string, decimals: number) => {
-  const floatValue = parseFloat(normalizePointAmount(value));
-  if (Number.isNaN(floatValue) || floatValue === 0) return '0';
-  return floatValue.toFixed(decimals);
+/**
+ * Formats a bigint amount (in wei) to a string with comma separators.
+ * Uses full precision (up to 18 decimals) - does not truncate.
+ */
+const formatFullPrecision = (amount: bigint, decimals: number = TOKEN_DECIMALS): string => {
+  const formatted = formatUnits(amount, decimals);
+  const [integerPart, decimalPart] = formatted.split('.');
+
+  // Format integer part with commas
+  const formattedInteger = BigInt(integerPart).toLocaleString('en-US');
+
+  if (!decimalPart || decimalPart === '0') {
+    return formattedInteger;
+  }
+
+  // Remove trailing zeros from decimal part but keep precision
+  const trimmedDecimal = decimalPart.replace(/0+$/, '');
+  if (!trimmedDecimal) {
+    return formattedInteger;
+  }
+
+  return `${formattedInteger}.${trimmedDecimal}`;
 };
 
 interface UseStakeAmountResult {
@@ -18,7 +36,7 @@ interface UseStakeAmountResult {
   debouncedAmountInput: string;
   parsedAmount: bigint | null;
   handleAmountChange: (value: string) => void;
-  handlePercentClick: (percent: number, balance: string) => void;
+  handlePercentClick: (percent: number, balance: bigint) => void;
   resetAmount: () => void;
 }
 
@@ -55,9 +73,10 @@ export const useStakeAmount = (initialAmount = ''): UseStakeAmountResult => {
     setActivePercentage(null);
   }, []);
 
-  const handlePercentClick = useCallback((percent: number, balance: string) => {
-    const value = (parseFloat(normalizePointAmount(balance || '0')) * percent) / 100;
-    const formattedValue = formatNumberDisplay(value, OUTPUT_DECIMALS);
+  const handlePercentClick = useCallback((percent: number, balance: bigint) => {
+    // Use bigint math to maintain full precision
+    const value = (balance * BigInt(percent)) / 100n;
+    const formattedValue = formatFullPrecision(value);
     setAmountInput(formattedValue);
     setFormattedAmount(formattedValue);
     setActivePercentage(percent);

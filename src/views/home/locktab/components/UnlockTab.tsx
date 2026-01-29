@@ -253,7 +253,7 @@ const UnlockTab = (_props: Props) => {
           <Button
             variant="outlined"
             size="small"
-            onClick={() => handlePercentClick(25, stakedDisplay)}
+            onClick={() => handlePercentClick(25, stakedAmount)}
             sx={{
               flex: 1,
               bgcolor: activePercentage === 25 ? theme.palette.secondary.main : 'transparent',
@@ -265,7 +265,7 @@ const UnlockTab = (_props: Props) => {
           <Button
             variant="outlined"
             size="small"
-            onClick={() => handlePercentClick(50, stakedDisplay)}
+            onClick={() => handlePercentClick(50, stakedAmount)}
             sx={{
               flex: 1,
               bgcolor: activePercentage === 50 ? theme.palette.secondary.main : 'transparent',
@@ -277,7 +277,7 @@ const UnlockTab = (_props: Props) => {
           <Button
             variant="outlined"
             size="small"
-            onClick={() => handlePercentClick(75, stakedDisplay)}
+            onClick={() => handlePercentClick(75, stakedAmount)}
             sx={{
               flex: 1,
               bgcolor: activePercentage === 75 ? theme.palette.secondary.main : 'transparent',
@@ -289,7 +289,7 @@ const UnlockTab = (_props: Props) => {
           <Button
             variant="outlined"
             size="small"
-            onClick={() => handlePercentClick(100, stakedDisplay)}
+            onClick={() => handlePercentClick(100, stakedAmount)}
             sx={{
               flex: 1,
               bgcolor: activePercentage === 100 ? theme.palette.secondary.main : 'transparent',

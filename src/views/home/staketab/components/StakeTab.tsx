@@ -342,7 +342,7 @@ const StakeTab = ({ balances }: Props) => {
           <Button
             variant="outlined"
             size="small"
-            onClick={() => handlePercentClick(25, balanceDisplay)}
+            onClick={() => handlePercentClick(25, effectiveBalance)}
             sx={{
               flex: 1,
               bgcolor: activePercentage === 25 ? theme.palette.secondary.main : 'transparent',
@@ -354,7 +354,7 @@ const StakeTab = ({ balances }: Props) => {
           <Button
             variant="outlined"
             size="small"
-            onClick={() => handlePercentClick(50, balanceDisplay)}
+            onClick={() => handlePercentClick(50, effectiveBalance)}
             sx={{
               flex: 1,
               bgcolor: activePercentage === 50 ? theme.palette.secondary.main : 'transparent',
@@ -366,7 +366,7 @@ const StakeTab = ({ balances }: Props) => {
           <Button
             variant="outlined"
             size="small"
-            onClick={() => handlePercentClick(75, balanceDisplay)}
+            onClick={() => handlePercentClick(75, effectiveBalance)}
             sx={{
               flex: 1,
               bgcolor: activePercentage === 75 ? theme.palette.secondary.main : 'transparent',
@@ -378,7 +378,7 @@ const StakeTab = ({ balances }: Props) => {
           <Button
             variant="outlined"
             size="small"
-            onClick={() => handlePercentClick(100, balanceDisplay)}
+            onClick={() => handlePercentClick(100, effectiveBalance)}
             sx={{
               flex: 1,
               bgcolor: activePercentage === 100 ? theme.palette.secondary.main : 'transparent',
