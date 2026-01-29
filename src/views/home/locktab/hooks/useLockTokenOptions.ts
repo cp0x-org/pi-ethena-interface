@@ -139,8 +139,14 @@ export const useLockTokenOptions = ({ includeZeroStakeLimit = false }: UseLockTo
   });
 
   const tokenOptions = useMemo<TokenOption[]>(() => {
-    return activeTokens.map((token, index) => {
-      const symbolResult = symbolData?.[index];
+    if (activeTokens.length === 0 || !symbolData || symbolData.length !== activeTokens.length) {
+      return [];
+    }
+
+    const prioritySymbols = ['USDe', 'sENA', 'ENA', 'sUSDe'];
+
+    const options = activeTokens.map((token, index) => {
+      const symbolResult = symbolData[index];
       const symbol = symbolResult?.status === 'success' ? symbolResult.result : undefined;
       return {
         address: token.address,
@@ -149,8 +155,18 @@ export const useLockTokenOptions = ({ includeZeroStakeLimit = false }: UseLockTo
         symbol
       };
     });
-  }, [activeTokens, symbolData]);
 
+    return options.sort((a, b) => {
+      const aIndex = a.symbol ? prioritySymbols.indexOf(a.symbol) : -1;
+      const bIndex = b.symbol ? prioritySymbols.indexOf(b.symbol) : -1;
+
+      if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+      if (aIndex !== -1) return -1;
+      if (bIndex !== -1) return 1;
+      return 0;
+    });
+  }, [activeTokens, symbolData]);
+console.log(tokenOptions);
   return {
     tokens: tokenOptions,
     isLoading: isLoadingLogs || isLoadingSymbols

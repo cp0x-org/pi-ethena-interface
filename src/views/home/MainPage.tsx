@@ -4,7 +4,8 @@ import Box from '@mui/material/Box';
 import { Typography, CircularProgress, Paper, Stack, useTheme, Card, Tabs, Tab } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import TabPanel from './components/TabPanel';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useChainId } from 'wagmi';
 import { useBalanceData } from 'hooks/useBalanceData';
 import StakeActionForms from 'views/home/staketab/StakeActionForms';
 import LockActionForms from 'views/home/locktab/LockActionForms';
@@ -13,11 +14,18 @@ import SummarySection from 'views/home/info/Summary';
 export default function MainPage() {
   const theme = useTheme();
   const [tabValue, setTabValue] = useState(0);
+  const chainId = useChainId();
+  const isEthereum = chainId === 1;
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
 
   const { balances, isLoading } = useBalanceData();
+  useEffect(() => {
+    if (!isEthereum && tabValue !== 0) {
+      setTabValue(0);
+    }
+  }, [isEthereum, tabValue]);
 
   if (isLoading) {
     return (
@@ -58,16 +66,25 @@ export default function MainPage() {
                 }}
               >
                 <Tab label="Staking" id="market-tab-0" aria-controls="market-tabpanel-0" sx={{ height: '100%', flex: 1 }} />
-                <Tab label="Locking" id="market-tab-1" aria-controls="market-tabpanel-2" sx={{ height: '100%', flex: 1 }} />
+                {isEthereum && (
+                  <Tab
+                    label="Locking"
+                    id="market-tab-1"
+                    aria-controls="market-tabpanel-2"
+                    sx={{ height: '100%', flex: 1 }}
+                  />
+                )}
               </Tabs>
             </Box>
 
             <TabPanel value={tabValue} index={0} sx={{ bgcolor: theme.palette.background.paper }}>
               <StakeActionForms balances={balances} />{' '}
             </TabPanel>
-            <TabPanel value={tabValue} index={1} sx={{ bgcolor: theme.palette.background.paper }}>
-              <LockActionForms balances={balances} />{' '}
-            </TabPanel>
+            {isEthereum && (
+              <TabPanel value={tabValue} index={1} sx={{ bgcolor: theme.palette.background.paper }}>
+                <LockActionForms balances={balances} />{' '}
+              </TabPanel>
+            )}
           </Grid>
         </Grid>
       </Paper>
