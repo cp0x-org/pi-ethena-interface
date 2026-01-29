@@ -1,6 +1,7 @@
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import { MenuItem, SelectChangeEvent, Typography } from '@mui/material';
+import { IconButton, MenuItem, SelectChangeEvent, Tooltip, Typography } from '@mui/material';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import React, { useMemo, useState, useEffect } from 'react';
 import { useAccount, useReadContract } from 'wagmi';
 import { formatTokenBalance } from 'utils/formatters';
@@ -15,6 +16,7 @@ import { useWriteTransaction } from 'hooks/useWriteTransaction';
 import { enaLpStakingConfig } from '@/appconfig/abi/EnaLpStaking';
 import { erc20Config } from '@/appconfig/abi/Erc20';
 import { useLockTokenOptions } from '../hooks/useLockTokenOptions';
+import { LP_TOKEN_NAMES } from '@/appconfig';
 
 interface LockTokenMeta {
   token: string;
@@ -226,6 +228,19 @@ const LockTab = (_props: Props) => {
     return selectedToken?.symbol ?? selectedTokenAddress;
   };
 
+  const getTokenTooltip = () => {
+    if (!selectedTokenAddress) return '';
+    const symbol = selectedToken?.symbol ?? 'Unknown';
+    const tokenName = LP_TOKEN_NAMES[selectedTokenAddress.toLowerCase()] ?? 'Unknown';
+    return `${symbol} (${tokenName}): ${selectedTokenAddress}`;
+  };
+
+  const handleCopyAddress = () => {
+    if (selectedTokenAddress) {
+      navigator.clipboard.writeText(selectedTokenAddress);
+    }
+  };
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, padding: 0 }}>
       <Box
@@ -300,6 +315,11 @@ const LockTab = (_props: Props) => {
               </MenuItem>
             ))}
           </StyledSelect>
+          <Tooltip title={getTokenTooltip()} arrow>
+            <IconButton onClick={handleCopyAddress} disabled={!selectedTokenAddress} size="small">
+              <ContentCopyIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
         </Box>
 
         <Box

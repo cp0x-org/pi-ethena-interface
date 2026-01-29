@@ -1,6 +1,7 @@
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import { MenuItem, SelectChangeEvent, Typography } from '@mui/material';
+import { IconButton, MenuItem, SelectChangeEvent, Tooltip, Typography } from '@mui/material';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAccount } from 'wagmi';
 import { formatTokenBalance } from 'utils/formatters';
@@ -15,6 +16,7 @@ import { enaLpStakingConfig } from '@/appconfig/abi/EnaLpStaking';
 import { StyledSelect } from 'components/StyledSelect';
 import { useLockTokenOptions } from '../hooks/useLockTokenOptions';
 import { useStakeInfoByToken } from '../hooks/useStakeInfoByToken';
+import { LP_TOKEN_NAMES } from '@/appconfig';
 
 interface Props {
   balances: BalancesData;
@@ -118,6 +120,19 @@ const UnlockTab = (_props: Props) => {
     return selectedToken?.symbol ?? selectedTokenAddress;
   };
 
+  const getTokenTooltip = () => {
+    if (!selectedTokenAddress) return '';
+    const symbol = selectedToken?.symbol ?? 'Unknown';
+    const tokenName = LP_TOKEN_NAMES[selectedTokenAddress.toLowerCase()] ?? 'Unknown';
+    return `${symbol} (${tokenName}): ${selectedTokenAddress}`;
+  };
+
+  const handleCopyAddress = () => {
+    if (selectedTokenAddress) {
+      navigator.clipboard.writeText(selectedTokenAddress);
+    }
+  };
+
   const handleUnlock = async () => {
     if (!parsedAmount || !userAddress || !selectedTokenAddress) return;
 
@@ -210,6 +225,11 @@ const UnlockTab = (_props: Props) => {
               </MenuItem>
             ))}
           </StyledSelect>
+          <Tooltip title={getTokenTooltip()} arrow>
+            <IconButton onClick={handleCopyAddress} disabled={!selectedTokenAddress} size="small">
+              <ContentCopyIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
         </Box>
 
         <Box
