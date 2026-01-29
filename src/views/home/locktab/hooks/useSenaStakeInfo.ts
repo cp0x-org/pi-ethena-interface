@@ -15,8 +15,6 @@ export const useSenaStakeInfo = () => {
   const { address: userAddress } = useAccount();
   const { config: chainConfig } = useConfigChainId();
   const chainId = useChainId();
-  console.log('chainId', chainId);
-  console.log('chainConfig.contracts', chainConfig);
   const stakingAddress = chainConfig.contracts.ENA_LP_STAKING as `0x${string}`;
   const senaAddress = chainConfig.contracts.SENA as `0x${string}`;
 
@@ -47,11 +45,6 @@ export const useSenaStakeInfo = () => {
       enabled: !!userAddress
     }
   });
-
-  console.log('useSenaStakeInfo stakeInfo', stakeInfo);
-  console.log('sena addr ', senaAddress);
-
-  console.log('stakingAddress ', stakingAddress);
 
   const cooldown = useMemo<bigint>(() => {
     if (!stakeParameters) return 0n;

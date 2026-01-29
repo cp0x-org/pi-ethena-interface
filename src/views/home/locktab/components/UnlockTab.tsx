@@ -87,7 +87,7 @@ const UnlockTab = (_props: Props) => {
     if (stakeLimit === 0n) return true;
     if (isAmountExceedsLimit) return true;
     if (isAmountExceedsStaked) return true;
-    if (unlockTx.txState === 'submitting') return true;
+    if (unlockTx.txState === 'submitting' || unlockTx.txState === 'submitted') return true;
     return false;
   }, [
     formattedAmount,

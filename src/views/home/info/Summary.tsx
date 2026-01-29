@@ -1,23 +1,24 @@
 import Box from '@mui/material/Box';
 import { Typography, Paper, Stack, useTheme, Card } from '@mui/material';
 import Grid from '@mui/material/Grid';
-import React, { useState } from 'react';
-import { useAccount } from 'wagmi';
+import React, { useEffect } from 'react';
 import { formatTokenBalance } from 'utils/formatters';
 import { BalancesData } from 'hooks/useBalanceData';
 import { useSenaStakeInfo } from 'views/home/locktab/hooks/useSenaStakeInfo';
+import { useBalanceRefresh } from 'contexts/BalanceRefreshContext';
+
 interface Props {
   balances: BalancesData;
 }
 export default function SummarySection(props: Props) {
   const theme = useTheme();
-  const { address: userAddress } = useAccount();
-  const [tabValue, setTabValue] = useState(0);
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-    setTabValue(newValue);
-  };
+  const { registerStakeRefetch } = useBalanceRefresh();
   const balances = props.balances;
-  const { stakedAmount } = useSenaStakeInfo();
+  const { stakedAmount, refetchAll } = useSenaStakeInfo();
+
+  useEffect(() => {
+    registerStakeRefetch(refetchAll);
+  }, [registerStakeRefetch, refetchAll]);
 
   return (
     <Paper>

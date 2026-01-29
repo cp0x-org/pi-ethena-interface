@@ -126,7 +126,8 @@ const LockTab = (_props: Props) => {
     if (!selectedTokenAddress) return true;
     if (isTokensLoading) return true;
     if (isAmountExceedsBalance) return true;
-    if (approveTx.txState === 'submitting' || lockTx.txState === 'submitting') return true;
+    if (approveTx.txState === 'submitting' || approveTx.txState === 'submitted') return true;
+    if (lockTx.txState === 'submitting' || lockTx.txState === 'submitted') return true;
     return false;
   }, [
     approveTx.txState,

@@ -131,7 +131,7 @@ const WithdrawTab = (_props: Props) => {
     if (!selectedTokenAddress) return true;
     if (isTokensLoading) return true;
     if (!canWithdraw) return true;
-    if (withdrawTx.txState === 'submitting') return true;
+    if (withdrawTx.txState === 'submitting' || withdrawTx.txState === 'submitted') return true;
     return false;
   }, [canWithdraw, formattedAmount, isTokensLoading, parsedAmount, selectedTokenAddress, userAddress, withdrawTx.txState]);
 
