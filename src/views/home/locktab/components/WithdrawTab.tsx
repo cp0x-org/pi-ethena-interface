@@ -1,6 +1,7 @@
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import { MenuItem, Typography } from '@mui/material';
+import { IconButton, MenuItem, Tooltip, Typography } from '@mui/material';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAccount } from 'wagmi';
 import { formatTokenBalance } from 'utils/formatters';
@@ -15,6 +16,7 @@ import { BalancesData } from 'hooks/useBalanceData';
 import { StyledSelect } from 'components/StyledSelect';
 import { useLockTokenOptions } from '../hooks/useLockTokenOptions';
 import { useStakeInfoByToken } from '../hooks/useStakeInfoByToken';
+import { LP_TOKEN_NAMES } from '@/appconfig';
 
 interface Props {
   balances?: BalancesData;
@@ -153,6 +155,19 @@ const WithdrawTab = (_props: Props) => {
     return selectedToken?.symbol ?? selectedTokenAddress;
   };
 
+  const getTokenTooltip = () => {
+    if (!selectedTokenAddress) return '';
+    const symbol = selectedToken?.symbol ?? 'Unknown';
+    const tokenName = LP_TOKEN_NAMES[selectedTokenAddress.toLowerCase()] ?? 'Unknown';
+    return `${symbol} (${tokenName}): ${selectedTokenAddress}`;
+  };
+
+  const handleCopyAddress = () => {
+    if (selectedTokenAddress) {
+      navigator.clipboard.writeText(selectedTokenAddress);
+    }
+  };
+
   const handleWithdraw = async () => {
     if (!parsedAmount || !userAddress || !canWithdraw || !selectedTokenAddress) return;
 
@@ -247,6 +262,11 @@ const WithdrawTab = (_props: Props) => {
               </MenuItem>
             ))}
           </StyledSelect>
+          <Tooltip title={getTokenTooltip()} arrow>
+            <IconButton onClick={handleCopyAddress} disabled={!selectedTokenAddress} size="small">
+              <ContentCopyIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
         </Box>
 
         <Box
