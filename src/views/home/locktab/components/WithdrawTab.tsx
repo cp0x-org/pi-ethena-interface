@@ -2,7 +2,7 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import { IconButton, MenuItem, Tooltip, Typography } from '@mui/material';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { useAccount } from 'wagmi';
 import { formatTokenBalance } from 'utils/formatters';
 
@@ -18,6 +18,7 @@ import { useLockTokenOptions } from '../hooks/useLockTokenOptions';
 import { useStakeInfoByToken } from '../hooks/useStakeInfoByToken';
 import { LP_TOKEN_NAMES } from '@/appconfig';
 import { useBalanceRefresh } from 'contexts/BalanceRefreshContext';
+import { dispatchSuccess, dispatchError } from 'utils/snackbar';
 
 interface Props {
   balances?: BalancesData;
@@ -181,11 +182,18 @@ const WithdrawTab = (_props: Props) => {
     });
   };
 
+  const prevWithdrawTxState = useRef(withdrawTx.txState);
   React.useEffect(() => {
-    if (withdrawTx.txState === 'confirmed') {
-      resetAmount();
-      refetchAll();
-      refetchBalances();
+    if (prevWithdrawTxState.current !== withdrawTx.txState) {
+      if (withdrawTx.txState === 'confirmed') {
+        dispatchSuccess('Withdraw confirmed');
+        resetAmount();
+        refetchAll();
+        refetchBalances();
+      } else if (withdrawTx.txState === 'error') {
+        dispatchError('Withdraw failed');
+      }
+      prevWithdrawTxState.current = withdrawTx.txState;
     }
   }, [refetchAll, resetAmount, withdrawTx.txState, refetchBalances]);
 

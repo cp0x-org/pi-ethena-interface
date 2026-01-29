@@ -2,7 +2,7 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import { IconButton, MenuItem, SelectChangeEvent, Tooltip, Typography } from '@mui/material';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { useAccount } from 'wagmi';
 import { formatTokenBalance } from 'utils/formatters';
 
@@ -18,6 +18,7 @@ import { useLockTokenOptions } from '../hooks/useLockTokenOptions';
 import { useStakeInfoByToken } from '../hooks/useStakeInfoByToken';
 import { LP_TOKEN_NAMES } from '@/appconfig';
 import { useBalanceRefresh } from 'contexts/BalanceRefreshContext';
+import { dispatchSuccess, dispatchError } from 'utils/snackbar';
 
 interface Props {
   balances: BalancesData;
@@ -146,11 +147,18 @@ const UnlockTab = (_props: Props) => {
     });
   };
 
+  const prevUnlockTxState = useRef(unlockTx.txState);
   React.useEffect(() => {
-    if (unlockTx.txState === 'confirmed') {
-      resetAmount();
-      refetchAll();
-      refetchBalances();
+    if (prevUnlockTxState.current !== unlockTx.txState) {
+      if (unlockTx.txState === 'confirmed') {
+        dispatchSuccess('Unlock confirmed');
+        resetAmount();
+        refetchAll();
+        refetchBalances();
+      } else if (unlockTx.txState === 'error') {
+        dispatchError('Unlock failed');
+      }
+      prevUnlockTxState.current = unlockTx.txState;
     }
   }, [refetchAll, resetAmount, unlockTx.txState, refetchBalances]);
 

@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import { useWriteTransaction } from 'hooks/useWriteTransaction';
 import { UnstakeTokenMeta } from './useUnstakeTokenSelection';
+import { dispatchSuccess, dispatchError } from 'utils/snackbar';
 
 interface UseWithdrawTransactionsParams {
   tokenMeta: UnstakeTokenMeta;
@@ -23,9 +24,16 @@ export const useWithdrawTransactions = ({ tokenMeta, userAddress, onWithdrawConf
     });
   }, [tokenMeta.abi, tokenMeta.stakingAddress, userAddress, withdrawTx]);
 
+  const prevWithdrawTxState = useRef(withdrawTx.txState);
   useEffect(() => {
-    if (withdrawTx.txState === 'confirmed') {
-      onWithdrawConfirmed?.();
+    if (prevWithdrawTxState.current !== withdrawTx.txState) {
+      if (withdrawTx.txState === 'confirmed') {
+        dispatchSuccess('Withdraw confirmed');
+        onWithdrawConfirmed?.();
+      } else if (withdrawTx.txState === 'error') {
+        dispatchError('Withdraw failed');
+      }
+      prevWithdrawTxState.current = withdrawTx.txState;
     }
   }, [onWithdrawConfirmed, withdrawTx.txState]);
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePublicClient } from 'wagmi';
 import { Options } from '@layerzerolabs/lz-v2-utilities';
 import { encodeAbiParameters, padHex, type Abi, type Address, type Hex } from 'viem';
@@ -10,6 +10,7 @@ import { useWriteTransaction } from 'hooks/useWriteTransaction';
 import { StakeTokenMeta, StakeTokenSymbol } from './useStakeTokenSelection';
 import { StakedUSDeOFTAdapter, SUSDE, SUSDE_VAULT_COMPOSER, USDeOFTAdapter } from '@/appconfig';
 import { StakeNetwork, getStakeNetworkByKey } from '../stakeNetworks';
+import { dispatchSuccess, dispatchError } from 'utils/snackbar';
 
 const SUSDE_VAULT_COMPOSER_ADDRESS = SUSDE_VAULT_COMPOSER as Address;
 
@@ -266,9 +267,16 @@ export const useStakeTransactions = ({
     userAddress
   ]);
 
+  const prevApproveTxState = useRef(approveTx.txState);
   useEffect(() => {
-    if (approveTx.txState === 'confirmed') {
-      onApprovalConfirmed?.();
+    if (prevApproveTxState.current !== approveTx.txState) {
+      if (approveTx.txState === 'confirmed') {
+        dispatchSuccess('Approval confirmed');
+        onApprovalConfirmed?.();
+      } else if (approveTx.txState === 'error') {
+        dispatchError('Approval failed');
+      }
+      prevApproveTxState.current = approveTx.txState;
     }
   }, [approveTx.txState, onApprovalConfirmed]);
 
@@ -285,11 +293,18 @@ export const useStakeTransactions = ({
     }
   }, [approveTx.txState, isAllowanceSufficient, pendingStake, stakeNetwork, submitStake, stakeTx.txState, token]);
 
+  const prevStakeTxState = useRef(stakeTx.txState);
   useEffect(() => {
-    if (stakeTx.txState === 'confirmed') {
-      setPendingStake(null);
-      onStakeConfirmed?.();
-      resetTransactions();
+    if (prevStakeTxState.current !== stakeTx.txState) {
+      if (stakeTx.txState === 'confirmed') {
+        dispatchSuccess('Stake confirmed');
+        setPendingStake(null);
+        onStakeConfirmed?.();
+        resetTransactions();
+      } else if (stakeTx.txState === 'error') {
+        dispatchError('Stake failed');
+      }
+      prevStakeTxState.current = stakeTx.txState;
     }
   }, [onStakeConfirmed, resetTransactions, stakeTx.txState]);
 

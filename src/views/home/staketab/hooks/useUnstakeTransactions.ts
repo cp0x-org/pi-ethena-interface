@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePublicClient } from 'wagmi';
 import { Options } from '@layerzerolabs/lz-v2-utilities';
 import { encodeAbiParameters, padHex, type Abi, type Address, type Hex } from 'viem';
@@ -11,6 +11,7 @@ import { UnstakeTokenMeta, UnstakeTokenSymbol } from './useUnstakeTokenSelection
 import { StakedUSDeOFTAdapter, SUSDE, SUSDE_VAULT_COMPOSER, USDeOFTAdapter } from '@/appconfig';
 import { StakeNetwork, getStakeNetworkByKey } from '../stakeNetworks';
 import { StakedUsdeOftConfig } from '@/appconfig/abi/StakedUsdeOft';
+import { dispatchSuccess, dispatchError } from 'utils/snackbar';
 
 const EMPTY_HEX = '0x' as Hex;
 const BPS_DENOMINATOR = 10_000n;
@@ -236,11 +237,18 @@ export const useUnstakeTransactions = ({
         await submitUnstake(parsedAmount);
     }, [isLayerZeroReady, isLayerZeroSusde, parsedAmount, unstakeNetwork, submitUnstake, token, userAddress]);
 
+    const prevUnstakeTxState = useRef(unstakeTx.txState);
     useEffect(() => {
-        if (unstakeTx.txState === 'confirmed') {
-            setPendingUnstake(null);
-            onUnstakeConfirmed?.();
-            resetTransactions();
+        if (prevUnstakeTxState.current !== unstakeTx.txState) {
+            if (unstakeTx.txState === 'confirmed') {
+                dispatchSuccess('Unstake confirmed');
+                setPendingUnstake(null);
+                onUnstakeConfirmed?.();
+                resetTransactions();
+            } else if (unstakeTx.txState === 'error') {
+                dispatchError('Unstake failed');
+            }
+            prevUnstakeTxState.current = unstakeTx.txState;
         }
     }, [onUnstakeConfirmed, resetTransactions, unstakeTx.txState]);
 

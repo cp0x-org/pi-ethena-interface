@@ -2,7 +2,7 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import { IconButton, MenuItem, SelectChangeEvent, Tooltip, Typography } from '@mui/material';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useAccount, useReadContract } from 'wagmi';
 import { formatTokenBalance } from 'utils/formatters';
 
@@ -18,6 +18,7 @@ import { erc20Config } from '@/appconfig/abi/Erc20';
 import { useLockTokenOptions } from '../hooks/useLockTokenOptions';
 import { LP_TOKEN_NAMES } from '@/appconfig';
 import { useBalanceRefresh } from 'contexts/BalanceRefreshContext';
+import { dispatchSuccess, dispatchError } from 'utils/snackbar';
 
 interface LockTokenMeta {
   token: string;
@@ -181,17 +182,31 @@ const LockTab = (_props: Props) => {
     }
   }, [approveTx.txState, isAllowanceSufficient, lockTx.txState, pendingAmount]);
 
+  const prevApproveTxState = useRef(approveTx.txState);
   useEffect(() => {
-    if (approveTx.txState === 'confirmed') {
-      refetchAllowance();
+    if (prevApproveTxState.current !== approveTx.txState) {
+      if (approveTx.txState === 'confirmed') {
+        dispatchSuccess('Approval confirmed');
+        refetchAllowance();
+      } else if (approveTx.txState === 'error') {
+        dispatchError('Approval failed');
+      }
+      prevApproveTxState.current = approveTx.txState;
     }
   }, [approveTx.txState, refetchAllowance]);
 
+  const prevLockTxState = useRef(lockTx.txState);
   useEffect(() => {
-    if (lockTx.txState === 'confirmed') {
-      setPendingAmount(null);
-      resetAmount();
-      refetchBalances();
+    if (prevLockTxState.current !== lockTx.txState) {
+      if (lockTx.txState === 'confirmed') {
+        dispatchSuccess('Lock confirmed');
+        setPendingAmount(null);
+        resetAmount();
+        refetchBalances();
+      } else if (lockTx.txState === 'error') {
+        dispatchError('Lock failed');
+      }
+      prevLockTxState.current = lockTx.txState;
     }
   }, [lockTx.txState, resetAmount, refetchBalances]);
 
