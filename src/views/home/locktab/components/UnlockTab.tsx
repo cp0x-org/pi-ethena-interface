@@ -17,6 +17,7 @@ import { StyledSelect } from 'components/StyledSelect';
 import { useLockTokenOptions } from '../hooks/useLockTokenOptions';
 import { useStakeInfoByToken } from '../hooks/useStakeInfoByToken';
 import { LP_TOKEN_NAMES } from '@/appconfig';
+import { useBalanceRefresh } from 'contexts/BalanceRefreshContext';
 
 interface Props {
   balances: BalancesData;
@@ -28,6 +29,7 @@ const UnlockTab = (_props: Props) => {
   const { config: chainConfig } = useConfigChainId();
   const { tokens, isLoading: isTokensLoading } = useLockTokenOptions({ includeZeroStakeLimit: true });
   const [selectedTokenAddress, setSelectedTokenAddress] = useState<`0x${string}` | null>(null);
+  const { refetchBalances } = useBalanceRefresh();
 
   useEffect(() => {
     if (tokens.length === 0) return;
@@ -148,8 +150,9 @@ const UnlockTab = (_props: Props) => {
     if (unlockTx.txState === 'confirmed') {
       resetAmount();
       refetchAll();
+      refetchBalances();
     }
-  }, [refetchAll, resetAmount, unlockTx.txState]);
+  }, [refetchAll, resetAmount, unlockTx.txState, refetchBalances]);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, padding: 0 }}>

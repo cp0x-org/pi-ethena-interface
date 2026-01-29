@@ -15,6 +15,7 @@ import { useStakeAmount } from '../hooks/useStakeAmount';
 import { useStakeTokenSelection } from '../hooks/useStakeTokenSelection';
 import { useStakeTransactions } from '../hooks/useStakeTransactions';
 import { getActiveStakeNetworks, getStakeNetworkByKey, type StakeNetwork } from '../stakeNetworks';
+import { useBalanceRefresh } from 'contexts/BalanceRefreshContext';
 
 interface Props {
   balances: BalancesData;
@@ -26,6 +27,7 @@ const StakeTab = ({ balances }: Props) => {
   const theme = useTheme();
   const { address: userAddress } = useAccount();
   const activeChainId = useChainId();
+  const { refetchBalances } = useBalanceRefresh();
   const activeStakeNetworks = useMemo(() => getActiveStakeNetworks(), []);
   const [stakeNetwork, setStakeNetwork] = useState<StakeNetwork>(() => activeStakeNetworks[0]?.key ?? 'avalanche');
 
@@ -75,6 +77,14 @@ const StakeTab = ({ balances }: Props) => {
     isApprovalRequired: !(tokenMeta.token === 'USDE' && stakeNetwork !== 'ethereum')
   });
 
+  const handleStakeConfirmed = useCallback(() => {
+    resetAmount();
+    // Only refetch balances for Ethereum staking, not LayerZero
+    if (stakeNetwork === 'ethereum') {
+      refetchBalances();
+    }
+  }, [resetAmount, stakeNetwork, refetchBalances]);
+
   const {
     handleStake,
     isTransactionInProgress,
@@ -91,7 +101,7 @@ const StakeTab = ({ balances }: Props) => {
     stakeNetwork,
     userAddress,
     onApprovalConfirmed: refetchAllowance,
-    onStakeConfirmed: resetAmount
+    onStakeConfirmed: handleStakeConfirmed
   });
 
   const isAmountExceedsBalance = useMemo(() => {

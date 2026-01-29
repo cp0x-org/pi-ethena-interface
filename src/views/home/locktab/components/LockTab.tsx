@@ -17,6 +17,7 @@ import { enaLpStakingConfig } from '@/appconfig/abi/EnaLpStaking';
 import { erc20Config } from '@/appconfig/abi/Erc20';
 import { useLockTokenOptions } from '../hooks/useLockTokenOptions';
 import { LP_TOKEN_NAMES } from '@/appconfig';
+import { useBalanceRefresh } from 'contexts/BalanceRefreshContext';
 
 interface LockTokenMeta {
   token: string;
@@ -35,6 +36,7 @@ const LockTab = (_props: Props) => {
   const { address: userAddress } = useAccount();
   const { config: chainConfig } = useConfigChainId();
   const { tokens, isLoading: isTokensLoading } = useLockTokenOptions();
+  const { refetchBalances } = useBalanceRefresh();
 
   const stakingAddress = chainConfig.contracts.ENA_LP_STAKING as `0x${string}`;
   const [selectedTokenAddress, setSelectedTokenAddress] = useState<`0x${string}` | null>(null);
@@ -188,8 +190,9 @@ const LockTab = (_props: Props) => {
     if (lockTx.txState === 'confirmed') {
       setPendingAmount(null);
       resetAmount();
+      refetchBalances();
     }
-  }, [lockTx.txState, resetAmount]);
+  }, [lockTx.txState, resetAmount, refetchBalances]);
 
   useEffect(() => {
     resetAmount();

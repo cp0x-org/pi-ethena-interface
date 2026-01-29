@@ -143,7 +143,7 @@ export const useLockTokenOptions = ({ includeZeroStakeLimit = false }: UseLockTo
       return [];
     }
 
-    const prioritySymbols = ['USDe', 'sENA', 'ENA', 'sUSDe'];
+    const prioritySymbols = ['sENA', 'USDe', 'ENA', 'sUSDe'];
 
     const options = activeTokens.map((token, index) => {
       const symbolResult = symbolData[index];

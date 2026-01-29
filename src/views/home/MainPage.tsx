@@ -10,6 +10,7 @@ import { useBalanceData } from 'hooks/useBalanceData';
 import StakeActionForms from 'views/home/staketab/StakeActionForms';
 import LockActionForms from 'views/home/locktab/LockActionForms';
 import SummarySection from 'views/home/info/Summary';
+import { BalanceRefreshProvider } from 'contexts/BalanceRefreshContext';
 
 export default function MainPage() {
   const theme = useTheme();
@@ -20,7 +21,7 @@ export default function MainPage() {
     setTabValue(newValue);
   };
 
-  const { balances, isLoading } = useBalanceData();
+  const { balances, isLoading, refetchBalances } = useBalanceData();
   useEffect(() => {
     if (!isEthereum && tabValue !== 0) {
       setTabValue(0);
@@ -38,56 +39,58 @@ export default function MainPage() {
   console.log(balances);
 
   return (
-    <Box sx={{ padding: '16px 0px' }}>
-      <Paper sx={{ padding: 0, marginBottom: 3 }}>
-        <Grid container spacing={12.5}>
-          <Grid size={{ xs: 12, md: 7 }}>
-            <Grid size={{ xs: 12 }}>
-              <SummarySection balances={balances} />
+    <BalanceRefreshProvider refetchBalances={refetchBalances}>
+      <Box sx={{ padding: '16px 0px' }}>
+        <Paper sx={{ padding: 0, marginBottom: 3 }}>
+          <Grid container spacing={12.5}>
+            <Grid size={{ xs: 12, md: 7 }}>
+              <Grid size={{ xs: 12 }}>
+                <SummarySection balances={balances} />
+              </Grid>
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 5 }}>
+              <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+                <Tabs
+                  value={tabValue}
+                  onChange={handleTabChange}
+                  aria-label="tabs"
+                  sx={{
+                    height: '58px',
+                    minHeight: '58px',
+                    borderColor: 'black',
+                    width: '100%',
+                    '& .MuiTabs-flexContainer': {
+                      border: 0,
+                      height: '100%',
+                      width: '100%'
+                    }
+                  }}
+                >
+                  <Tab label="Staking" id="market-tab-0" aria-controls="market-tabpanel-0" sx={{ height: '100%', flex: 1 }} />
+                  {isEthereum && (
+                    <Tab
+                      label="Locking"
+                      id="market-tab-1"
+                      aria-controls="market-tabpanel-2"
+                      sx={{ height: '100%', flex: 1 }}
+                    />
+                  )}
+                </Tabs>
+              </Box>
+
+              <TabPanel value={tabValue} index={0} sx={{ bgcolor: theme.palette.background.paper }}>
+                <StakeActionForms balances={balances} />{' '}
+              </TabPanel>
+              {isEthereum && (
+                <TabPanel value={tabValue} index={1} sx={{ bgcolor: theme.palette.background.paper }}>
+                  <LockActionForms balances={balances} />{' '}
+                </TabPanel>
+              )}
             </Grid>
           </Grid>
-
-          <Grid size={{ xs: 12, md: 5 }}>
-            <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-              <Tabs
-                value={tabValue}
-                onChange={handleTabChange}
-                aria-label="tabs"
-                sx={{
-                  height: '58px',
-                  minHeight: '58px',
-                  borderColor: 'black',
-                  width: '100%',
-                  '& .MuiTabs-flexContainer': {
-                    border: 0,
-                    height: '100%',
-                    width: '100%'
-                  }
-                }}
-              >
-                <Tab label="Staking" id="market-tab-0" aria-controls="market-tabpanel-0" sx={{ height: '100%', flex: 1 }} />
-                {isEthereum && (
-                  <Tab
-                    label="Locking"
-                    id="market-tab-1"
-                    aria-controls="market-tabpanel-2"
-                    sx={{ height: '100%', flex: 1 }}
-                  />
-                )}
-              </Tabs>
-            </Box>
-
-            <TabPanel value={tabValue} index={0} sx={{ bgcolor: theme.palette.background.paper }}>
-              <StakeActionForms balances={balances} />{' '}
-            </TabPanel>
-            {isEthereum && (
-              <TabPanel value={tabValue} index={1} sx={{ bgcolor: theme.palette.background.paper }}>
-                <LockActionForms balances={balances} />{' '}
-              </TabPanel>
-            )}
-          </Grid>
-        </Grid>
-      </Paper>
-    </Box>
+        </Paper>
+      </Box>
+    </BalanceRefreshProvider>
   );
 }

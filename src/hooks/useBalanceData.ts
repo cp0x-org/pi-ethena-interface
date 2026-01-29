@@ -13,7 +13,7 @@ export type BalancesData = {
   susde: bigint;
 };
 
-export const useBalanceData = (): { balances: BalancesData; isLoading: boolean } => {
+export const useBalanceData = (): { balances: BalancesData; isLoading: boolean; refetchBalances: () => void } => {
   const { address: userAddress } = useAccount();
   const wagmiChainId = useChainId();
   const { config: chainConfig } = useConfigChainId();
@@ -25,7 +25,7 @@ export const useBalanceData = (): { balances: BalancesData; isLoading: boolean }
   const usdeAddress = isEthereum ? chainConfig.contracts.USDE : USDeOFTAdapter;
   const susdeAddress = isEthereum ? chainConfig.contracts.SUSDE : StakedUSDeOFTAdapter;
 
-  const { data, isLoading } = useReadContracts({
+  const { data, isLoading, refetch } = useReadContracts({
     contracts: [
       {
         abi: enaConfig.abi,
@@ -69,5 +69,9 @@ export const useBalanceData = (): { balances: BalancesData; isLoading: boolean }
   console.log('useBalanceData balances', balances);
   console.log('useBalanceData loading', isLoading);
 
-  return { balances, isLoading };
+  const refetchBalances = () => {
+    refetch();
+  };
+
+  return { balances, isLoading, refetchBalances };
 };

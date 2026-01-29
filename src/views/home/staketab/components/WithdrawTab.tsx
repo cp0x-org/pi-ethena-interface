@@ -1,7 +1,7 @@
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import { MenuItem, Typography } from '@mui/material';
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { useAccount } from 'wagmi';
 
 import { useTheme } from '@mui/material/styles';
@@ -10,6 +10,7 @@ import { BalancesData } from 'hooks/useBalanceData';
 import { useCooldownInfo } from '../hooks/useCooldownInfo';
 import { useUnstakeTokenSelection } from '../hooks/useUnstakeTokenSelection';
 import { useWithdrawTransactions } from '../hooks/useWithdrawTransactions';
+import { useBalanceRefresh } from 'contexts/BalanceRefreshContext';
 
 interface Props {
   balances: BalancesData;
@@ -18,16 +19,22 @@ interface Props {
 const WithdrawTab = ({ balances }: Props) => {
   const theme = useTheme();
   const { address: userAddress } = useAccount();
+  const { refetchBalances } = useBalanceRefresh();
 
   const { tokenMeta, unstakeTokenAddress, handleTokenAddressChange, tokenOptions } = useUnstakeTokenSelection(balances);
 
   const { formattedUnderlyingAmount, timeRemainingSeconds, isCooldownActive, cooldownMessage, underlyingAmount, refetchCooldown } =
     useCooldownInfo({ tokenMeta, userAddress });
 
+  const handleWithdrawConfirmed = useCallback(() => {
+    refetchCooldown();
+    refetchBalances();
+  }, [refetchCooldown, refetchBalances]);
+
   const { handleWithdraw, withdrawTx, statusMessage } = useWithdrawTransactions({
     tokenMeta,
     userAddress,
-    onWithdrawConfirmed: refetchCooldown
+    onWithdrawConfirmed: handleWithdrawConfirmed
   });
 
   const buttonText = useMemo(() => {

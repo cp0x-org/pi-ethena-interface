@@ -15,6 +15,7 @@ import { useUnstakeTokenSelection } from '../hooks/useUnstakeTokenSelection';
 import { useUnstakeTransactions } from '../hooks/useUnstakeTransactions';
 import { getActiveStakeNetworks, getStakeNetworkByKey, type StakeNetwork } from '../stakeNetworks';
 import { StakedUSDeOFTAdapter } from '@/appconfig';
+import { useBalanceRefresh } from 'contexts/BalanceRefreshContext';
 
 interface Props {
   balances: BalancesData;
@@ -27,6 +28,7 @@ const UnstakeTab = ({ balances }: Props) => {
   const { address: userAddress } = useAccount();
   const activeChainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
+  const { refetchBalances } = useBalanceRefresh();
   const activeStakeNetworks = useMemo(() => getActiveStakeNetworks(), []);
   const [unstakeNetwork, setUnstakeNetwork] = useState<StakeNetwork>(() => activeStakeNetworks[0]?.key ?? 'avalanche');
 
@@ -68,6 +70,14 @@ const UnstakeTab = ({ balances }: Props) => {
     amountInput
   } = useStakeAmount('');
 
+  const handleUnstakeConfirmed = useCallback(() => {
+    resetAmount();
+    // Only refetch balances for Ethereum unstaking, not LayerZero
+    if (unstakeNetwork === 'ethereum') {
+      refetchBalances();
+    }
+  }, [resetAmount, unstakeNetwork, refetchBalances]);
+
   const {
     handleUnstake,
     unstakeTx,
@@ -81,9 +91,7 @@ const UnstakeTab = ({ balances }: Props) => {
     parsedAmount,
     unstakeNetwork,
     userAddress,
-    onUnstakeConfirmed: () => {
-      resetAmount();
-    }
+    onUnstakeConfirmed: handleUnstakeConfirmed
   });
 
   const isAmountExceedsBalance = useMemo(() => {
