@@ -2,7 +2,7 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import { IconButton, MenuItem, SelectChangeEvent, Tooltip, Typography } from '@mui/material';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { useAccount, useReadContract } from 'wagmi';
 import { formatTokenBalance } from 'utils/formatters';
 
@@ -59,7 +59,7 @@ const LockTab = (_props: Props) => {
     return tokens.find((token) => token.address.toLowerCase() === selectedTokenAddress.toLowerCase()) ?? null;
   }, [selectedTokenAddress, tokens]);
 
-  const { data: selectedBalance } = useReadContract({
+  const { data: selectedBalance, refetch: refetchSelectedBalance } = useReadContract({
     abi: erc20Config.abi,
     address: selectedTokenAddress ?? undefined,
     functionName: 'balanceOf',
@@ -149,15 +149,18 @@ const LockTab = (_props: Props) => {
     return null;
   }, [approveTx.txState, lockTx.txState]);
 
-  const submitLock = async (amount: bigint) => {
-    if (!selectedTokenAddress) return;
-    await lockTx.sendTransaction({
-      abi: enaLpStakingConfig.abi,
-      address: stakingAddress,
-      functionName: 'stake',
-      args: [tokenMeta.tokenAddress, amount]
-    });
-  };
+  const submitLock = useCallback(
+    async (amount: bigint) => {
+      if (!selectedTokenAddress) return;
+      await lockTx.sendTransaction({
+        abi: enaLpStakingConfig.abi,
+        address: stakingAddress,
+        functionName: 'stake',
+        args: [tokenMeta.tokenAddress, amount]
+      });
+    },
+    [lockTx, selectedTokenAddress, stakingAddress, tokenMeta.tokenAddress]
+  );
 
   const handleLock = async () => {
     if (!parsedAmount || !userAddress || !selectedTokenAddress) return;
@@ -180,7 +183,7 @@ const LockTab = (_props: Props) => {
     if (approveTx.txState === 'confirmed' && pendingAmount && isAllowanceSufficient && lockTx.txState === 'idle') {
       submitLock(pendingAmount);
     }
-  }, [approveTx.txState, isAllowanceSufficient, lockTx.txState, pendingAmount]);
+  }, [approveTx.txState, isAllowanceSufficient, lockTx.txState, pendingAmount, submitLock]);
 
   const prevApproveTxState = useRef(approveTx.txState);
   useEffect(() => {
@@ -202,13 +205,15 @@ const LockTab = (_props: Props) => {
         dispatchSuccess('Lock confirmed');
         setPendingAmount(null);
         resetAmount();
+        refetchSelectedBalance();
+        refetchAllowance();
         refetchBalances();
       } else if (lockTx.txState === 'error') {
         dispatchError('Lock failed');
       }
       prevLockTxState.current = lockTx.txState;
     }
-  }, [lockTx.txState, resetAmount, refetchBalances]);
+  }, [lockTx.txState, resetAmount, refetchAllowance, refetchBalances, refetchSelectedBalance]);
 
   useEffect(() => {
     resetAmount();
