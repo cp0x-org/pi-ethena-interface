@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useIntl } from 'react-intl';
 import { usePublicClient } from 'wagmi';
 import { Options } from '@layerzerolabs/lz-v2-utilities';
 import { encodeAbiParameters, padHex, type Abi, type Address, type Hex } from 'viem';
@@ -79,6 +80,7 @@ export const useUnstakeTransactions = ({
     userAddress,
     onUnstakeConfirmed
 }: UseUnstakeTransactionsParams): UseUnstakeTransactionsResult => {
+    const intl = useIntl();
     const unstakeTx = useWriteTransaction();
     const ethereumClient = usePublicClient({ chainId: 1 });
     const layerZeroNetwork = getStakeNetworkByKey()[unstakeNetwork];
@@ -87,7 +89,8 @@ export const useUnstakeTransactions = ({
     const [pendingUnstake, setPendingUnstake] = useState<PendingUnstake | null>(null);
     const [internalAmount, setInternalAmount] = useState<bigint | null>(null);
     const [isInternalAmountLoading, setIsInternalAmountLoading] = useState(false);
-    const [configMessage, setConfigMessage] = useState<string | null>(null);
+    // Stored as a message id (not a formatted string) so it re-localises when the language changes.
+    const [configMessageId, setConfigMessageId] = useState<string | null>(null);
 
     const { token, abi, stakingAddress } = tokenMeta;
 
@@ -99,7 +102,7 @@ export const useUnstakeTransactions = ({
     const resetTransactions = useCallback(() => {
         unstakeTx.resetTx();
         setPendingUnstake(null);
-        setConfigMessage(null);
+        setConfigMessageId(null);
     }, [unstakeTx.resetTx]);
 
     const fetchInternalAmount = useCallback(
@@ -229,7 +232,7 @@ export const useUnstakeTransactions = ({
     const handleUnstake = useCallback(async () => {
         if (!userAddress || !parsedAmount || parsedAmount === 0n) return;
         if (isLayerZeroSusde && !isLayerZeroReady) {
-            setConfigMessage('LayerZero config missing for selected network.');
+            setConfigMessageId('app.tx.layerZeroMissing');
             return;
         }
 
@@ -241,27 +244,30 @@ export const useUnstakeTransactions = ({
     useEffect(() => {
         if (prevUnstakeTxState.current !== unstakeTx.txState) {
             if (unstakeTx.txState === 'confirmed') {
-                dispatchSuccess('Unstake confirmed');
+                dispatchSuccess(intl.formatMessage({ id: 'app.tx.unstakeConfirmed', defaultMessage: 'Unstake confirmed' }));
                 setPendingUnstake(null);
                 onUnstakeConfirmed?.();
                 resetTransactions();
             } else if (unstakeTx.txState === 'error') {
-                dispatchError('Unstake failed');
+                dispatchError(intl.formatMessage({ id: 'app.tx.unstakeFailed', defaultMessage: 'Unstake failed' }));
             }
             prevUnstakeTxState.current = unstakeTx.txState;
         }
-    }, [onUnstakeConfirmed, resetTransactions, unstakeTx.txState]);
+    }, [intl, onUnstakeConfirmed, resetTransactions, unstakeTx.txState]);
 
     const isTransactionInProgress = useMemo(() => {
         return unstakeTx.txState === 'submitting' || unstakeTx.txState === 'submitted';
     }, [unstakeTx.txState]);
 
     const statusMessage = useMemo(() => {
-        if (configMessage) return configMessage;
-        if (unstakeTx.txState === 'submitted') return 'Unstake submitted, waiting for confirmation...';
-        if (unstakeTx.txState === 'error') return 'Unstake failed, please retry.';
+        if (configMessageId)
+            return intl.formatMessage({ id: configMessageId, defaultMessage: 'LayerZero config missing for selected network.' });
+        if (unstakeTx.txState === 'submitted')
+            return intl.formatMessage({ id: 'app.tx.unstakeSubmitted', defaultMessage: 'Unstake submitted, waiting for confirmation...' });
+        if (unstakeTx.txState === 'error')
+            return intl.formatMessage({ id: 'app.tx.unstakeFailedRetry', defaultMessage: 'Unstake failed, please retry.' });
         return null;
-    }, [configMessage, unstakeTx.txState]);
+    }, [configMessageId, intl, unstakeTx.txState]);
 
     return {
         handleUnstake,

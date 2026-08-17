@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { useIntl } from 'react-intl';
 
 import Box from '@mui/material/Box';
 import { Typography, CircularProgress, Paper, Stack, useTheme, Card, Tabs, Tab } from '@mui/material';
@@ -11,9 +12,11 @@ import StakeActionForms from 'views/home/staketab/StakeActionForms';
 import LockActionForms from 'views/home/locktab/LockActionForms';
 import SummarySection from 'views/home/info/Summary';
 import { BalanceRefreshProvider } from 'contexts/BalanceRefreshContext';
+import { visuallyHidden } from 'utils/a11y';
 
 export default function MainPage() {
   const theme = useTheme();
+  const intl = useIntl();
   const [tabValue, setTabValue] = useState(0);
   const chainId = useChainId();
   const isEthereum = chainId === 1;
@@ -30,8 +33,10 @@ export default function MainPage() {
 
   if (isLoading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', padding: 4 }}>
-        <CircularProgress />
+      <Box sx={{ display: 'flex', justifyContent: 'center', padding: 4 }} role="status">
+        <CircularProgress
+          aria-label={intl.formatMessage({ id: 'app.common.loadingBalances', defaultMessage: 'Loading wallet balances' })}
+        />
       </Box>
     );
   }
@@ -41,6 +46,9 @@ export default function MainPage() {
   return (
     <BalanceRefreshProvider refetchBalances={refetchBalances}>
       <Box sx={{ padding: '16px 0px' }}>
+        <Typography component="h1" sx={visuallyHidden}>
+          {intl.formatMessage({ id: 'app.page.title', defaultMessage: 'Ethena Permissionless Interface' })}
+        </Typography>
         <Paper sx={{ padding: 0, marginBottom: 3 }}>
           <Grid container spacing={12.5}>
             <Grid size={{ xs: 12, md: 7 }}>
@@ -54,7 +62,7 @@ export default function MainPage() {
                 <Tabs
                   value={tabValue}
                   onChange={handleTabChange}
-                  aria-label="tabs"
+                  aria-label={intl.formatMessage({ id: 'app.page.products', defaultMessage: 'Ethena products' })}
                   sx={{
                     height: '58px',
                     minHeight: '58px',
@@ -67,23 +75,28 @@ export default function MainPage() {
                     }
                   }}
                 >
-                  <Tab label="Staking" id="market-tab-0" aria-controls="market-tabpanel-0" sx={{ height: '100%', flex: 1 }} />
+                  <Tab
+                    label={intl.formatMessage({ id: 'app.page.tab.staking', defaultMessage: 'Staking' })}
+                    id="product-tab-0"
+                    aria-controls="product-tabpanel-0"
+                    sx={{ height: '100%', flex: 1 }}
+                  />
                   {isEthereum && (
                     <Tab
-                      label="Locking"
-                      id="market-tab-1"
-                      aria-controls="market-tabpanel-2"
+                      label={intl.formatMessage({ id: 'app.page.tab.locking', defaultMessage: 'Locking' })}
+                      id="product-tab-1"
+                      aria-controls="product-tabpanel-1"
                       sx={{ height: '100%', flex: 1 }}
                     />
                   )}
                 </Tabs>
               </Box>
 
-              <TabPanel value={tabValue} index={0} sx={{ bgcolor: theme.palette.background.paper }}>
+              <TabPanel idPrefix="product" value={tabValue} index={0} sx={{ bgcolor: theme.palette.background.paper }}>
                 <StakeActionForms balances={balances} />{' '}
               </TabPanel>
               {isEthereum && (
-                <TabPanel value={tabValue} index={1} sx={{ bgcolor: theme.palette.background.paper }}>
+                <TabPanel idPrefix="product" value={tabValue} index={1} sx={{ bgcolor: theme.palette.background.paper }}>
                   <LockActionForms balances={balances} />{' '}
                 </TabPanel>
               )}

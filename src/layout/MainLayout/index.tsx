@@ -120,6 +120,7 @@ export default function MainLayout() {
       {/* main content */}
       <MainContentStyled {...{ borderRadius, menuOrientation, open: drawerOpen, marginTop: 80 }}>
         <Container
+          component="main"
           maxWidth={'lg'}
           sx={{
             ...(!container && { px: { xs: 0 } }),

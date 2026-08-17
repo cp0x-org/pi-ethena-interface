@@ -2,6 +2,7 @@ import Box from '@mui/material/Box';
 import { Typography, Paper, Tabs, Tab } from '@mui/material';
 import React, { useState } from 'react';
 import { useAccount } from 'wagmi';
+import { useIntl } from 'react-intl';
 import { TabPanel, LockTab, UnlockTab, WithdrawTab } from './components';
 import { useTheme } from '@mui/material/styles';
 import { BalancesData } from 'hooks/useBalanceData';
@@ -12,6 +13,7 @@ interface Props {
 
 export default function LockActionForms(props: Props) {
   const theme = useTheme();
+  const intl = useIntl();
   const [tabValue, setTabValue] = useState(0);
   const { address: userAddress } = useAccount();
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
@@ -21,8 +23,8 @@ export default function LockActionForms(props: Props) {
   if (!userAddress) {
     return (
       <Box sx={{ padding: 2 }}>
-        <Typography variant="h5" color="error">
-          Connect wallet to continue.
+        <Typography variant="h5" component="p" color="error" role="status">
+          {intl.formatMessage({ id: 'app.wallet.connectToContinue', defaultMessage: 'Connect wallet to continue.' })}
         </Typography>
       </Box>
     );
@@ -34,7 +36,7 @@ export default function LockActionForms(props: Props) {
         <Tabs
           value={tabValue}
           onChange={handleTabChange}
-          aria-label="tabs"
+          aria-label={intl.formatMessage({ id: 'app.lock.actions', defaultMessage: 'Locking actions' })}
           variant="fullWidth"
           sx={{
             minHeight: '40px',
@@ -63,21 +65,33 @@ export default function LockActionForms(props: Props) {
             }
           }}
         >
-          <Tab label="Lock" id="market-tab-0" aria-controls="market-tabpanel-0" />
-          <Tab label="Unlock" id="market-tab-1" aria-controls="market-tabpanel-1" />
-          <Tab label="Withdraw" id="market-tab-2" aria-controls="market-tabpanel-2" />
+          <Tab
+            label={intl.formatMessage({ id: 'app.lock.tab.lock', defaultMessage: 'Lock' })}
+            id="lock-action-tab-0"
+            aria-controls="lock-action-tabpanel-0"
+          />
+          <Tab
+            label={intl.formatMessage({ id: 'app.lock.tab.unlock', defaultMessage: 'Unlock' })}
+            id="lock-action-tab-1"
+            aria-controls="lock-action-tabpanel-1"
+          />
+          <Tab
+            label={intl.formatMessage({ id: 'app.lock.tab.withdraw', defaultMessage: 'Withdraw' })}
+            id="lock-action-tab-2"
+            aria-controls="lock-action-tabpanel-2"
+          />
         </Tabs>
       </Box>
 
-      <TabPanel value={tabValue} index={0} sx={{ bgcolor: theme.palette.background.paper }}>
+      <TabPanel idPrefix="lock-action" value={tabValue} index={0} sx={{ bgcolor: theme.palette.background.paper }}>
         <LockTab balances={props.balances} />
       </TabPanel>
 
-      <TabPanel value={tabValue} index={1} sx={{ bgcolor: theme.palette.background.paper }}>
+      <TabPanel idPrefix="lock-action" value={tabValue} index={1} sx={{ bgcolor: theme.palette.background.paper }}>
         <UnlockTab balances={props.balances} />
       </TabPanel>
 
-      <TabPanel value={tabValue} index={2} sx={{ bgcolor: theme.palette.background.paper }}>
+      <TabPanel idPrefix="lock-action" value={tabValue} index={2} sx={{ bgcolor: theme.palette.background.paper }}>
         <WithdrawTab balances={props.balances} />
       </TabPanel>
     </Paper>

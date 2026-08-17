@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useIntl } from 'react-intl';
 import { usePublicClient } from 'wagmi';
 import { Options } from '@layerzerolabs/lz-v2-utilities';
 import { encodeAbiParameters, padHex, type Abi, type Address, type Hex } from 'viem';
@@ -85,6 +86,7 @@ export const useStakeTransactions = ({
   onApprovalConfirmed,
   onStakeConfirmed
 }: UseStakeTransactionsParams): UseStakeTransactionsResult => {
+  const intl = useIntl();
   const approveTx = useWriteTransaction();
   const stakeTx = useWriteTransaction();
   const ethereumClient = usePublicClient({ chainId: 1 });
@@ -94,7 +96,8 @@ export const useStakeTransactions = ({
   const [pendingStake, setPendingStake] = useState<PendingStake | null>(null);
   const [internalAmount, setInternalAmount] = useState<bigint | null>(null);
   const [isInternalAmountLoading, setIsInternalAmountLoading] = useState(false);
-  const [configMessage, setConfigMessage] = useState<string | null>(null);
+  // Stored as a message id (not a formatted string) so it re-localises when the language changes.
+  const [configMessageId, setConfigMessageId] = useState<string | null>(null);
 
   const { token, approveAbi, tokenAddress, stakingAddress, stakeAbi } = tokenMeta;
 
@@ -107,7 +110,7 @@ export const useStakeTransactions = ({
     approveTx.resetTx();
     stakeTx.resetTx();
     setPendingStake(null);
-    setConfigMessage(null);
+    setConfigMessageId(null);
   }, [approveTx.resetTx, stakeTx.resetTx]);
 
   const fetchInternalAmount = useCallback(
@@ -197,11 +200,7 @@ export const useStakeTransactions = ({
         args: [sendParam, false] as const
       })) as { nativeFee: bigint; lzTokenFee: bigint };
 
-      const sendArgs = [
-        sendParam,
-        { nativeFee: msgFee.nativeFee, lzTokenFee: msgFee.lzTokenFee },
-        userAddress
-      ] as const;
+      const sendArgs = [sendParam, { nativeFee: msgFee.nativeFee, lzTokenFee: msgFee.lzTokenFee }, userAddress] as const;
 
       await stakeTx.sendTransaction({
         address: USDeOFTAdapter,
@@ -235,7 +234,7 @@ export const useStakeTransactions = ({
   const handleStake = useCallback(async () => {
     if (!userAddress || !parsedAmount || parsedAmount === 0n) return;
     if (isLayerZeroUsde && !isLayerZeroReady) {
-      setConfigMessage('LayerZero config missing for selected network.');
+      setConfigMessageId('app.tx.layerZeroMissing');
       return;
     }
 
@@ -271,14 +270,14 @@ export const useStakeTransactions = ({
   useEffect(() => {
     if (prevApproveTxState.current !== approveTx.txState) {
       if (approveTx.txState === 'confirmed') {
-        dispatchSuccess('Approval confirmed');
+        dispatchSuccess(intl.formatMessage({ id: 'app.tx.approvalConfirmed', defaultMessage: 'Approval confirmed' }));
         onApprovalConfirmed?.();
       } else if (approveTx.txState === 'error') {
-        dispatchError('Approval failed');
+        dispatchError(intl.formatMessage({ id: 'app.tx.approvalFailed', defaultMessage: 'Approval failed' }));
       }
       prevApproveTxState.current = approveTx.txState;
     }
-  }, [approveTx.txState, onApprovalConfirmed]);
+  }, [approveTx.txState, intl, onApprovalConfirmed]);
 
   useEffect(() => {
     if (
@@ -297,16 +296,16 @@ export const useStakeTransactions = ({
   useEffect(() => {
     if (prevStakeTxState.current !== stakeTx.txState) {
       if (stakeTx.txState === 'confirmed') {
-        dispatchSuccess('Stake confirmed');
+        dispatchSuccess(intl.formatMessage({ id: 'app.tx.stakeConfirmed', defaultMessage: 'Stake confirmed' }));
         setPendingStake(null);
         onStakeConfirmed?.();
         resetTransactions();
       } else if (stakeTx.txState === 'error') {
-        dispatchError('Stake failed');
+        dispatchError(intl.formatMessage({ id: 'app.tx.stakeFailed', defaultMessage: 'Stake failed' }));
       }
       prevStakeTxState.current = stakeTx.txState;
     }
-  }, [onStakeConfirmed, resetTransactions, stakeTx.txState]);
+  }, [intl, onStakeConfirmed, resetTransactions, stakeTx.txState]);
 
   const isTransactionInProgress = useMemo(() => {
     return (
@@ -318,13 +317,18 @@ export const useStakeTransactions = ({
   }, [approveTx.txState, stakeTx.txState]);
 
   const statusMessage = useMemo(() => {
-    if (configMessage) return configMessage;
-    if (approveTx.txState === 'submitted') return 'Approval submitted, waiting for confirmation...';
-    if (approveTx.txState === 'error') return 'Approval failed, please retry.';
-    if (stakeTx.txState === 'submitted') return 'Stake submitted, waiting for confirmation...';
-    if (stakeTx.txState === 'error') return 'Stake failed, please retry.';
+    if (configMessageId)
+      return intl.formatMessage({ id: configMessageId, defaultMessage: 'LayerZero config missing for selected network.' });
+    if (approveTx.txState === 'submitted')
+      return intl.formatMessage({ id: 'app.tx.approvalSubmitted', defaultMessage: 'Approval submitted, waiting for confirmation...' });
+    if (approveTx.txState === 'error')
+      return intl.formatMessage({ id: 'app.tx.approvalFailedRetry', defaultMessage: 'Approval failed, please retry.' });
+    if (stakeTx.txState === 'submitted')
+      return intl.formatMessage({ id: 'app.tx.stakeSubmitted', defaultMessage: 'Stake submitted, waiting for confirmation...' });
+    if (stakeTx.txState === 'error')
+      return intl.formatMessage({ id: 'app.tx.stakeFailedRetry', defaultMessage: 'Stake failed, please retry.' });
     return null;
-  }, [approveTx.txState, configMessage, stakeTx.txState]);
+  }, [approveTx.txState, configMessageId, intl, stakeTx.txState]);
 
   return {
     handleStake,

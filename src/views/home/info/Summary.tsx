@@ -2,16 +2,19 @@ import Box from '@mui/material/Box';
 import { Typography, Paper, Stack, useTheme, Card } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import React, { useEffect } from 'react';
+import { useIntl } from 'react-intl';
 import { formatTokenBalance } from 'utils/formatters';
 import { BalancesData } from 'hooks/useBalanceData';
 import { useSenaStakeInfo } from 'views/home/locktab/hooks/useSenaStakeInfo';
 import { useBalanceRefresh } from 'contexts/BalanceRefreshContext';
+import { visuallyHidden } from 'utils/a11y';
 
 interface Props {
   balances: BalancesData;
 }
 export default function SummarySection(props: Props) {
   const theme = useTheme();
+  const intl = useIntl();
   const { registerStakeRefetch } = useBalanceRefresh();
   const balances = props.balances;
   const { stakedAmount, refetchAll } = useSenaStakeInfo();
@@ -21,10 +24,15 @@ export default function SummarySection(props: Props) {
   }, [registerStakeRefetch, refetchAll]);
 
   return (
-    <Paper>
+    <Paper component="section" aria-labelledby="wallet-balances-heading">
+      <Typography component="h2" id="wallet-balances-heading" sx={visuallyHidden}>
+        {intl.formatMessage({ id: 'app.balances.heading', defaultMessage: 'Your Ethena token balances' })}
+      </Typography>
       <Grid container spacing={2} sx={{ padding: '0px' }}>
         <Grid size={{ xs: 12, sm: 6 }} sx={{ padding: '0px' }}>
           <Card
+            role="group"
+            aria-labelledby="balance-usde-title"
             sx={{
               ...theme.applyStyles('dark', {
                 bgcolor: 'background.default',
@@ -35,11 +43,11 @@ export default function SummarySection(props: Props) {
             }}
           >
             <Stack spacing={'30px'} sx={{ padding: '0px' }}>
-              <Typography variant="h5" sx={{ fontWeight: 400, height: '27px', marginBottom: '8px' }}>
+              <Typography id="balance-usde-title" variant="h5" component="h3" sx={{ fontWeight: 400, height: '27px', marginBottom: '8px' }}>
                 USDe
               </Typography>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                <Typography variant="h3" sx={{ color: theme.palette.grey[500] }}>
+                <Typography variant="h3" component="p" sx={{ color: theme.palette.grey[500] }}>
                   {formatTokenBalance(balances.usde)}
                 </Typography>
                 {/*{isChanged && futurePosition && (*/}
@@ -63,6 +71,8 @@ export default function SummarySection(props: Props) {
 
         <Grid size={{ xs: 12, sm: 6 }} sx={{ padding: '0px' }}>
           <Card
+            role="group"
+            aria-labelledby="balance-susde-title"
             sx={{
               ...theme.applyStyles('dark', {
                 bgcolor: 'background.default',
@@ -73,11 +83,16 @@ export default function SummarySection(props: Props) {
             }}
           >
             <Stack spacing={'30px'} sx={{ padding: '0px' }}>
-              <Typography variant="h5" sx={{ fontWeight: 400, height: '27px', marginBottom: '8px' }}>
+              <Typography
+                id="balance-susde-title"
+                variant="h5"
+                component="h3"
+                sx={{ fontWeight: 400, height: '27px', marginBottom: '8px' }}
+              >
                 sUSDe
               </Typography>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                <Typography variant="h3" sx={{ color: theme.palette.grey[500] }}>
+                <Typography variant="h3" component="p" sx={{ color: theme.palette.grey[500] }}>
                   {formatTokenBalance(balances.susde)}
                 </Typography>
                 {/*{isChanged && futurePosition && (*/}
@@ -101,6 +116,8 @@ export default function SummarySection(props: Props) {
 
         <Grid size={{ xs: 12, sm: 6 }}>
           <Card
+            role="group"
+            aria-labelledby="balance-ena-title"
             sx={{
               ...theme.applyStyles('dark', {
                 bgcolor: 'background.default',
@@ -111,11 +128,11 @@ export default function SummarySection(props: Props) {
             }}
           >
             <Stack spacing={'30px'} sx={{ padding: '0px' }}>
-              <Typography variant="h5" sx={{ fontWeight: 400, height: '27px', marginBottom: '8px' }}>
+              <Typography id="balance-ena-title" variant="h5" component="h3" sx={{ fontWeight: 400, height: '27px', marginBottom: '8px' }}>
                 ENA
               </Typography>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                <Typography variant="h3" sx={{ color: theme.palette.grey[500] }}>
+                <Typography variant="h3" component="p" sx={{ color: theme.palette.grey[500] }}>
                   {formatTokenBalance(balances.ena)}
                 </Typography>
                 {/*{isChanged && futurePosition && (*/}
@@ -136,6 +153,8 @@ export default function SummarySection(props: Props) {
         </Grid>
         <Grid size={{ xs: 12, sm: 6 }}>
           <Card
+            role="group"
+            aria-labelledby="balance-sena-title"
             sx={{
               ...theme.applyStyles('dark', {
                 bgcolor: 'background.default',
@@ -146,24 +165,32 @@ export default function SummarySection(props: Props) {
             }}
           >
             <Stack spacing={'0px'} sx={{ padding: '0px' }}>
-              <Typography variant="h5" sx={{ fontWeight: 400, height: '27px', marginBottom: '8px' }}>
+              <Typography id="balance-sena-title" variant="h5" component="h3" sx={{ fontWeight: 400, height: '27px', marginBottom: '8px' }}>
                 sENA
               </Typography>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: '5px', width: '100%' }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', width: '100%' }}>
-                    <Typography variant="body2" sx={{ color: theme.palette.grey[500] }}>
-                      Locked
+                  <Box
+                    role="group"
+                    aria-labelledby="balance-sena-locked-label"
+                    sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', width: '100%' }}
+                  >
+                    <Typography id="balance-sena-locked-label" variant="body2" sx={{ color: theme.palette.grey[500] }}>
+                      {intl.formatMessage({ id: 'app.balances.locked', defaultMessage: 'Locked' })}
                     </Typography>
-                    <Typography variant="h3" sx={{ color: theme.palette.grey[500] }}>
+                    <Typography variant="h3" component="p" sx={{ color: theme.palette.grey[500] }}>
                       {formatTokenBalance(stakedAmount)}
                     </Typography>
                   </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', width: '100%' }}>
-                    <Typography variant="body2" sx={{ color: theme.palette.grey[500] }}>
-                      Unlocked
+                  <Box
+                    role="group"
+                    aria-labelledby="balance-sena-unlocked-label"
+                    sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', width: '100%' }}
+                  >
+                    <Typography id="balance-sena-unlocked-label" variant="body2" sx={{ color: theme.palette.grey[500] }}>
+                      {intl.formatMessage({ id: 'app.balances.unlocked', defaultMessage: 'Unlocked' })}
                     </Typography>
-                    <Typography variant="h3" sx={{ color: theme.palette.grey[500] }}>
+                    <Typography variant="h3" component="p" sx={{ color: theme.palette.grey[500] }}>
                       {formatTokenBalance(balances.sena)}
                     </Typography>
                   </Box>
