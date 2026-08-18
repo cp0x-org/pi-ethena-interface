@@ -3,6 +3,7 @@ import Button from '@mui/material/Button';
 import { IconButton, MenuItem, SelectChangeEvent, Tooltip, Typography } from '@mui/material';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import React, { useEffect, useMemo, useState, useRef } from 'react';
+import { useIntl } from 'react-intl';
 import { useAccount } from 'wagmi';
 import { formatTokenBalance } from 'utils/formatters';
 
@@ -19,6 +20,7 @@ import { useStakeInfoByToken } from '../hooks/useStakeInfoByToken';
 import { LP_TOKEN_NAMES } from '@/appconfig';
 import { useBalanceRefresh } from 'contexts/BalanceRefreshContext';
 import { dispatchSuccess, dispatchError } from 'utils/snackbar';
+import { visuallyHidden } from 'utils/a11y';
 
 interface Props {
   balances: BalancesData;
@@ -26,6 +28,7 @@ interface Props {
 
 const UnlockTab = (_props: Props) => {
   const theme = useTheme();
+  const intl = useIntl();
   const { address: userAddress } = useAccount();
   const { config: chainConfig } = useConfigChainId();
   const { tokens, isLoading: isTokensLoading } = useLockTokenOptions({ includeZeroStakeLimit: true });
@@ -70,15 +73,36 @@ const UnlockTab = (_props: Props) => {
     return parsedAmount > stakeLimit;
   }, [parsedAmount, stakeLimit]);
 
-  const buttonText = useMemo(() => {
-    if (!formattedAmount) return 'Enter amount';
-    if (stakeLimit === 0n) return 'Unlocking disabled';
-    if (isAmountExceedsLimit) return 'Amount exceeds limit';
-    if (isAmountExceedsStaked) return 'Insufficient staked balance';
-    if (unlockTx.txState === 'submitting' || unlockTx.txState === 'submitted') return 'Unlocking...';
-    if (unlockTx.txState === 'error') return 'Unlock failed - retry';
-    return 'Unlock';
+  // The button state is derived separately from its label so that translated copy
+  // never has to be compared against English literals.
+  const buttonState = useMemo(() => {
+    if (!formattedAmount) return 'enterAmount' as const;
+    if (stakeLimit === 0n) return 'disabled' as const;
+    if (isAmountExceedsLimit) return 'exceedsLimit' as const;
+    if (isAmountExceedsStaked) return 'insufficientStaked' as const;
+    if (unlockTx.txState === 'submitting' || unlockTx.txState === 'submitted') return 'unlocking' as const;
+    if (unlockTx.txState === 'error') return 'retry' as const;
+    return 'submit' as const;
   }, [formattedAmount, isAmountExceedsLimit, isAmountExceedsStaked, stakeLimit, unlockTx.txState]);
+
+  const buttonText = useMemo(() => {
+    switch (buttonState) {
+      case 'enterAmount':
+        return intl.formatMessage({ id: 'app.common.enterAmount', defaultMessage: 'Enter amount' });
+      case 'disabled':
+        return intl.formatMessage({ id: 'app.unlock.disabled', defaultMessage: 'Unlocking disabled' });
+      case 'exceedsLimit':
+        return intl.formatMessage({ id: 'app.unlock.exceedsLimit', defaultMessage: 'Amount exceeds limit' });
+      case 'insufficientStaked':
+        return intl.formatMessage({ id: 'app.unlock.insufficientStaked', defaultMessage: 'Insufficient staked balance' });
+      case 'unlocking':
+        return intl.formatMessage({ id: 'app.unlock.unlocking', defaultMessage: 'Unlocking...' });
+      case 'retry':
+        return intl.formatMessage({ id: 'app.unlock.retry', defaultMessage: 'Unlock failed - retry' });
+      default:
+        return intl.formatMessage({ id: 'app.unlock.submit', defaultMessage: 'Unlock' });
+    }
+  }, [buttonState, intl]);
 
   const isButtonDisabled = useMemo(() => {
     if (!formattedAmount || !parsedAmount || parsedAmount === 0n) return true;
@@ -103,23 +127,39 @@ const UnlockTab = (_props: Props) => {
   ]);
 
   const statusMessage = useMemo(() => {
-    if (unlockTx.txState === 'submitted') return 'Unlock submitted, waiting for confirmation...';
-    if (unlockTx.txState === 'error') return 'Unlock failed, please retry.';
+    if (unlockTx.txState === 'submitted')
+      return intl.formatMessage({ id: 'app.tx.unlockSubmitted', defaultMessage: 'Unlock submitted, waiting for confirmation...' });
+    if (unlockTx.txState === 'error')
+      return intl.formatMessage({ id: 'app.tx.unlockFailedRetry', defaultMessage: 'Unlock failed, please retry.' });
     return null;
-  }, [unlockTx.txState]);
+  }, [intl, unlockTx.txState]);
 
-  const renderStatus = () => {
-    if (!statusMessage) return null;
-    return (
-      <Typography variant="body2" color="text.secondary">
-        {statusMessage}
-      </Typography>
-    );
-  };
+  // Ticker as it is spelled in the UI, used for accessible names only.
+  const tokenLabel = selectedToken?.symbol ?? 'Token';
+
+  const isStatusError = unlockTx.txState === 'error';
+
+  const submitAccessibleName =
+    buttonState === 'submit'
+      ? intl.formatMessage({ id: 'app.unlock.submitToken', defaultMessage: 'Unlock {symbol}' }, { symbol: tokenLabel })
+      : undefined;
+
+  // Always-rendered live region so transaction updates reach assistive tech.
+  const renderStatus = () => (
+    <Typography
+      key={isStatusError ? 'alert' : 'status'}
+      id="unlock-status"
+      role={isStatusError ? 'alert' : 'status'}
+      variant="body2"
+      color="text.secondary"
+    >
+      {statusMessage ?? ''}
+    </Typography>
+  );
 
   const renderTokenValue = () => {
-    if (isTokensLoading) return 'Loading...';
-    if (!selectedTokenAddress) return 'Select token';
+    if (isTokensLoading) return intl.formatMessage({ id: 'app.common.loading', defaultMessage: 'Loading...' });
+    if (!selectedTokenAddress) return intl.formatMessage({ id: 'app.common.selectToken', defaultMessage: 'Select token' });
     return selectedToken?.symbol ?? selectedTokenAddress;
   };
 
@@ -151,16 +191,16 @@ const UnlockTab = (_props: Props) => {
   React.useEffect(() => {
     if (prevUnlockTxState.current !== unlockTx.txState) {
       if (unlockTx.txState === 'confirmed') {
-        dispatchSuccess('Unlock confirmed');
+        dispatchSuccess(intl.formatMessage({ id: 'app.tx.unlockConfirmed', defaultMessage: 'Unlock confirmed' }));
         resetAmount();
         refetchAll();
         refetchBalances();
       } else if (unlockTx.txState === 'error') {
-        dispatchError('Unlock failed');
+        dispatchError(intl.formatMessage({ id: 'app.tx.unlockFailed', defaultMessage: 'Unlock failed' }));
       }
       prevUnlockTxState.current = unlockTx.txState;
     }
-  }, [refetchAll, resetAmount, unlockTx.txState, refetchBalances]);
+  }, [intl, refetchAll, resetAmount, unlockTx.txState, refetchBalances]);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, padding: 0 }}>
@@ -196,9 +236,11 @@ const UnlockTab = (_props: Props) => {
             }}
           >
             <Typography variant="body2" color="text.main" fontWeight="bold">
-              Unlock {selectedToken?.symbol ?? 'Token'}
+              {intl.formatMessage({ id: 'app.unlock.heading', defaultMessage: 'Unlock {symbol}' }, { symbol: tokenLabel })}
             </Typography>
-            <Typography variant="body2">Cooldown shares:</Typography>
+            <Typography variant="body2">
+              {intl.formatMessage({ id: 'app.unlock.cooldownShares', defaultMessage: 'Cooldown shares:' })}
+            </Typography>
           </Box>
         </Box>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
@@ -208,12 +250,25 @@ const UnlockTab = (_props: Props) => {
             value={formattedAmount}
             onChange={(e) => handleAmountChange(e.target.value)}
             placeholder="0"
-            inputProps={{ inputMode: 'decimal', pattern: '[0-9.,]*' }}
+            inputProps={{
+              inputMode: 'decimal',
+              pattern: '[0-9.,]*',
+              'aria-label': intl.formatMessage(
+                { id: 'app.unlock.amountInput', defaultMessage: 'Amount of {symbol} to unlock' },
+                { symbol: tokenLabel }
+              ),
+              'aria-describedby': 'unlock-staked-value unlock-status',
+              'aria-invalid': isAmountExceedsStaked || isAmountExceedsLimit || undefined
+            }}
             sx={{ flex: 1 }}
           />
+          <Box component="span" id="unlock-token-label" sx={visuallyHidden}>
+            {intl.formatMessage({ id: 'app.unlock.tokenLabel', defaultMessage: 'Token to unlock' })}
+          </Box>
           <StyledSelect
             id="unlockToken"
             name="unlockToken"
+            labelId="unlock-token-label"
             value={selectedTokenAddress ?? ''}
             onChange={(event: SelectChangeEvent<unknown>) => setSelectedTokenAddress(event.target.value as `0x${string}`)}
             variant="outlined"
@@ -223,11 +278,11 @@ const UnlockTab = (_props: Props) => {
           >
             {isTokensLoading ? (
               <MenuItem disabled value="">
-                Loading...
+                {intl.formatMessage({ id: 'app.common.loading', defaultMessage: 'Loading...' })}
               </MenuItem>
             ) : tokens.length === 0 ? (
               <MenuItem disabled value="">
-                No tokens available
+                {intl.formatMessage({ id: 'app.common.noTokensAvailable', defaultMessage: 'No tokens available' })}
               </MenuItem>
             ) : null}
             {tokens.map((token) => (
@@ -237,13 +292,31 @@ const UnlockTab = (_props: Props) => {
             ))}
           </StyledSelect>
           <Tooltip title={getTokenTooltip()} arrow>
-            <IconButton onClick={handleCopyAddress} disabled={!selectedTokenAddress} size="small">
+            <IconButton
+              onClick={handleCopyAddress}
+              disabled={!selectedTokenAddress}
+              size="small"
+              aria-label={intl.formatMessage(
+                { id: 'app.common.copyAddress', defaultMessage: 'Copy {symbol} contract address' },
+                { symbol: tokenLabel }
+              )}
+              aria-describedby={selectedTokenAddress ? 'unlock-token-address' : undefined}
+            >
               <ContentCopyIcon fontSize="small" />
             </IconButton>
           </Tooltip>
+          {/* the tooltip text is visual only, so the same value is exposed to the a11y tree */}
+          <Box component="span" id="unlock-token-address" sx={visuallyHidden}>
+            {getTokenTooltip()}
+          </Box>
         </Box>
 
         <Box
+          role="group"
+          aria-label={intl.formatMessage(
+            { id: 'app.common.presetAmount', defaultMessage: 'Preset {symbol} amount' },
+            { symbol: tokenLabel }
+          )}
           sx={{
             display: 'flex',
             gap: 1,
@@ -254,6 +327,11 @@ const UnlockTab = (_props: Props) => {
             variant="outlined"
             size="small"
             onClick={() => handlePercentClick(25, stakedAmount)}
+            aria-pressed={activePercentage === 25}
+            aria-label={intl.formatMessage(
+              { id: 'app.unlock.percentOfStaked', defaultMessage: '{percent}% of staked {symbol}' },
+              { percent: 25, symbol: tokenLabel }
+            )}
             sx={{
               flex: 1,
               bgcolor: activePercentage === 25 ? theme.palette.secondary.main : 'transparent',
@@ -266,6 +344,11 @@ const UnlockTab = (_props: Props) => {
             variant="outlined"
             size="small"
             onClick={() => handlePercentClick(50, stakedAmount)}
+            aria-pressed={activePercentage === 50}
+            aria-label={intl.formatMessage(
+              { id: 'app.unlock.percentOfStaked', defaultMessage: '{percent}% of staked {symbol}' },
+              { percent: 50, symbol: tokenLabel }
+            )}
             sx={{
               flex: 1,
               bgcolor: activePercentage === 50 ? theme.palette.secondary.main : 'transparent',
@@ -278,6 +361,11 @@ const UnlockTab = (_props: Props) => {
             variant="outlined"
             size="small"
             onClick={() => handlePercentClick(75, stakedAmount)}
+            aria-pressed={activePercentage === 75}
+            aria-label={intl.formatMessage(
+              { id: 'app.unlock.percentOfStaked', defaultMessage: '{percent}% of staked {symbol}' },
+              { percent: 75, symbol: tokenLabel }
+            )}
             sx={{
               flex: 1,
               bgcolor: activePercentage === 75 ? theme.palette.secondary.main : 'transparent',
@@ -290,13 +378,15 @@ const UnlockTab = (_props: Props) => {
             variant="outlined"
             size="small"
             onClick={() => handlePercentClick(100, stakedAmount)}
+            aria-pressed={activePercentage === 100}
+            aria-label={intl.formatMessage({ id: 'app.unlock.maxStaked', defaultMessage: 'Max staked {symbol}' }, { symbol: tokenLabel })}
             sx={{
               flex: 1,
               bgcolor: activePercentage === 100 ? theme.palette.secondary.main : 'transparent',
               color: activePercentage === 100 ? theme.palette.background.paper : 'inherit'
             }}
           >
-            Max
+            {intl.formatMessage({ id: 'app.common.max', defaultMessage: 'Max' })}
           </Button>
         </Box>
       </Box>
@@ -323,8 +413,11 @@ const UnlockTab = (_props: Props) => {
             margin: '10px 0'
           }}
         >
-          <Typography variant="h4" fontWeight="normal">
-            Staked: {stakedDisplay} {selectedToken?.symbol ?? 'Token'}
+          <Typography id="unlock-staked-value" variant="h4" component="p" fontWeight="normal">
+            {intl.formatMessage(
+              { id: 'app.unlock.staked', defaultMessage: 'Staked: {amount} {symbol}' },
+              { amount: stakedDisplay, symbol: tokenLabel }
+            )}
           </Typography>
           <Box sx={{ flex: 1 }}>{renderStatus()}</Box>
         </Box>
@@ -336,7 +429,14 @@ const UnlockTab = (_props: Props) => {
             alignItems: 'center'
           }}
         >
-          <Button variant="contained" fullWidth onClick={handleUnlock} disabled={isButtonDisabled}>
+          <Button
+            variant="contained"
+            fullWidth
+            onClick={handleUnlock}
+            disabled={isButtonDisabled}
+            aria-label={submitAccessibleName}
+            aria-describedby="unlock-staked-value unlock-status"
+          >
             {buttonText}
           </Button>
         </Box>

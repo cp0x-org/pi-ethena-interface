@@ -3,6 +3,7 @@ import Button from '@mui/material/Button';
 import { IconButton, MenuItem, Tooltip, Typography } from '@mui/material';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import { useIntl } from 'react-intl';
 import { useAccount } from 'wagmi';
 import { formatTokenBalance } from 'utils/formatters';
 
@@ -19,6 +20,7 @@ import { useStakeInfoByToken } from '../hooks/useStakeInfoByToken';
 import { LP_TOKEN_NAMES } from '@/appconfig';
 import { useBalanceRefresh } from 'contexts/BalanceRefreshContext';
 import { dispatchSuccess, dispatchError } from 'utils/snackbar';
+import { visuallyHidden } from 'utils/a11y';
 
 interface Props {
   balances?: BalancesData;
@@ -26,6 +28,7 @@ interface Props {
 
 const WithdrawTab = (_props: Props) => {
   const theme = useTheme();
+  const intl = useIntl();
   const { address: userAddress } = useAccount();
   const { config: chainConfig } = useConfigChainId();
   const { tokens, isLoading: isTokensLoading } = useLockTokenOptions({ includeZeroStakeLimit: true });
@@ -106,25 +109,39 @@ const WithdrawTab = (_props: Props) => {
     return parsedAmount <= coolingDownAmount;
   }, [coolingDownAmount, isAmountExceedsLimit, isCooldownComplete, parsedAmount, stakeLimit]);
 
+  // The button state is derived separately from its label so that translated copy
+  // never has to be compared against English literals.
+  const buttonState = useMemo(() => {
+    if (!formattedAmount) return 'enterAmount' as const;
+    if (!isCooldownComplete) return 'cooldown' as const;
+    if (isAmountExceedsLimit) return 'exceedsLimit' as const;
+    if (parsedAmount && parsedAmount > coolingDownAmount) return 'insufficientCooled' as const;
+    if (withdrawTx.txState === 'submitting' || withdrawTx.txState === 'submitted') return 'withdrawing' as const;
+    if (withdrawTx.txState === 'error') return 'retry' as const;
+    return 'submit' as const;
+  }, [coolingDownAmount, formattedAmount, isAmountExceedsLimit, isCooldownComplete, parsedAmount, withdrawTx.txState]);
+
   const buttonText = useMemo(() => {
-    if (!formattedAmount) return 'Enter amount';
-    if (!isCooldownComplete) return `Cooldown ends in ${formatDuration(timeRemainingSeconds)}`;
-    if (isAmountExceedsLimit) return 'Amount exceeds limit';
-    if (parsedAmount && parsedAmount > coolingDownAmount) return 'Insufficient cooled balance';
-    if (withdrawTx.txState === 'submitting' || withdrawTx.txState === 'submitted') return 'Withdrawing...';
-    if (withdrawTx.txState === 'error') return 'Withdraw failed - retry';
-    return 'Withdraw';
-  }, [
-    coolingDownAmount,
-    formattedAmount,
-    formatDuration,
-    isAmountExceedsLimit,
-    isCooldownComplete,
-    parsedAmount,
-    stakeLimit,
-    timeRemainingSeconds,
-    withdrawTx.txState
-  ]);
+    switch (buttonState) {
+      case 'enterAmount':
+        return intl.formatMessage({ id: 'app.common.enterAmount', defaultMessage: 'Enter amount' });
+      case 'cooldown':
+        return intl.formatMessage(
+          { id: 'app.withdraw.cooldownEndsIn', defaultMessage: 'Cooldown ends in {duration}' },
+          { duration: formatDuration(timeRemainingSeconds) }
+        );
+      case 'exceedsLimit':
+        return intl.formatMessage({ id: 'app.unlock.exceedsLimit', defaultMessage: 'Amount exceeds limit' });
+      case 'insufficientCooled':
+        return intl.formatMessage({ id: 'app.lockWithdraw.insufficientCooled', defaultMessage: 'Insufficient cooled balance' });
+      case 'withdrawing':
+        return intl.formatMessage({ id: 'app.withdraw.withdrawing', defaultMessage: 'Withdrawing...' });
+      case 'retry':
+        return intl.formatMessage({ id: 'app.withdraw.retry', defaultMessage: 'Withdraw failed - retry' });
+      default:
+        return intl.formatMessage({ id: 'app.withdraw.submit', defaultMessage: 'Withdraw' });
+    }
+  }, [buttonState, formatDuration, intl, timeRemainingSeconds]);
 
   const isButtonDisabled = useMemo(() => {
     if (!formattedAmount || !parsedAmount || parsedAmount === 0n) return true;
@@ -137,24 +154,39 @@ const WithdrawTab = (_props: Props) => {
   }, [canWithdraw, formattedAmount, isTokensLoading, parsedAmount, selectedTokenAddress, userAddress, withdrawTx.txState]);
 
   const statusMessage = useMemo(() => {
-    if (!isCooldownComplete) return `Cooldown ends in ${formatDuration(timeRemainingSeconds)}.`;
-    if (withdrawTx.txState === 'submitted') return 'Withdraw submitted, waiting for confirmation...';
-    if (withdrawTx.txState === 'error') return 'Withdraw failed, please retry.';
+    if (!isCooldownComplete)
+      return intl.formatMessage(
+        { id: 'app.lockWithdraw.cooldownEndsInPeriod', defaultMessage: 'Cooldown ends in {duration}.' },
+        { duration: formatDuration(timeRemainingSeconds) }
+      );
+    if (withdrawTx.txState === 'submitted')
+      return intl.formatMessage({ id: 'app.tx.withdrawSubmitted', defaultMessage: 'Withdraw submitted, waiting for confirmation...' });
+    if (withdrawTx.txState === 'error')
+      return intl.formatMessage({ id: 'app.tx.withdrawFailedRetry', defaultMessage: 'Withdraw failed, please retry.' });
     return null;
-  }, [formatDuration, isCooldownComplete, timeRemainingSeconds, withdrawTx.txState]);
+  }, [formatDuration, intl, isCooldownComplete, timeRemainingSeconds, withdrawTx.txState]);
 
-  const renderStatus = () => {
-    if (!statusMessage) return null;
-    return (
-      <Typography variant="body2" color="text.secondary">
-        {statusMessage}
-      </Typography>
-    );
-  };
+  // Ticker as it is spelled in the UI, used for accessible names only.
+  const tokenLabel = selectedToken?.symbol ?? 'Token';
+
+  const submitAccessibleName =
+    buttonState === 'submit'
+      ? intl.formatMessage({ id: 'app.withdraw.submitToken', defaultMessage: 'Withdraw {symbol}' }, { symbol: tokenLabel })
+      : undefined;
+
+  // While the cooldown is counting down the message changes every second, so it must not be
+  // a live region — otherwise assistive tech would announce it once per second.
+  const statusRole = withdrawTx.txState === 'error' ? 'alert' : isCooldownComplete ? 'status' : undefined;
+
+  const renderStatus = () => (
+    <Typography key={statusRole ?? 'plain'} id="lock-withdraw-status" role={statusRole} variant="body2" color="text.secondary">
+      {statusMessage ?? ''}
+    </Typography>
+  );
 
   const renderTokenValue = () => {
-    if (isTokensLoading) return 'Loading...';
-    if (!selectedTokenAddress) return 'Select token';
+    if (isTokensLoading) return intl.formatMessage({ id: 'app.common.loading', defaultMessage: 'Loading...' });
+    if (!selectedTokenAddress) return intl.formatMessage({ id: 'app.common.selectToken', defaultMessage: 'Select token' });
     return selectedToken?.symbol ?? selectedTokenAddress;
   };
 
@@ -186,16 +218,16 @@ const WithdrawTab = (_props: Props) => {
   React.useEffect(() => {
     if (prevWithdrawTxState.current !== withdrawTx.txState) {
       if (withdrawTx.txState === 'confirmed') {
-        dispatchSuccess('Withdraw confirmed');
+        dispatchSuccess(intl.formatMessage({ id: 'app.tx.withdrawConfirmed', defaultMessage: 'Withdraw confirmed' }));
         resetAmount();
         refetchAll();
         refetchBalances();
       } else if (withdrawTx.txState === 'error') {
-        dispatchError('Withdraw failed');
+        dispatchError(intl.formatMessage({ id: 'app.tx.withdrawFailed', defaultMessage: 'Withdraw failed' }));
       }
       prevWithdrawTxState.current = withdrawTx.txState;
     }
-  }, [refetchAll, resetAmount, withdrawTx.txState, refetchBalances]);
+  }, [intl, refetchAll, resetAmount, withdrawTx.txState, refetchBalances]);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, padding: 0 }}>
@@ -231,9 +263,11 @@ const WithdrawTab = (_props: Props) => {
             }}
           >
             <Typography variant="body2" color="text.main" fontWeight="bold">
-              Withdraw {selectedToken?.symbol ?? 'Token'}
+              {intl.formatMessage({ id: 'app.lockWithdraw.heading', defaultMessage: 'Withdraw {symbol}' }, { symbol: tokenLabel })}
             </Typography>
-            <Typography variant="body2">Cooled down amount:</Typography>
+            <Typography variant="body2">
+              {intl.formatMessage({ id: 'app.lockWithdraw.cooledDownAmount', defaultMessage: 'Cooled down amount:' })}
+            </Typography>
           </Box>
         </Box>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
@@ -243,12 +277,25 @@ const WithdrawTab = (_props: Props) => {
             value={formattedAmount}
             onChange={(e) => handleAmountChange(e.target.value)}
             placeholder="0"
-            inputProps={{ inputMode: 'decimal', pattern: '[0-9.,]*' }}
+            inputProps={{
+              inputMode: 'decimal',
+              pattern: '[0-9.,]*',
+              'aria-label': intl.formatMessage(
+                { id: 'app.lockWithdraw.amountInput', defaultMessage: 'Amount of {symbol} to withdraw' },
+                { symbol: tokenLabel }
+              ),
+              'aria-describedby': 'lock-withdraw-cooling-value lock-withdraw-status',
+              'aria-invalid': isAmountExceedsLimit || (!!parsedAmount && parsedAmount > coolingDownAmount) || undefined
+            }}
             sx={{ flex: 1 }}
           />
+          <Box component="span" id="lock-withdraw-token-label" sx={visuallyHidden}>
+            {intl.formatMessage({ id: 'app.withdraw.tokenLabel', defaultMessage: 'Token to withdraw' })}
+          </Box>
           <StyledSelect
             id="withdrawToken"
             name="withdrawToken"
+            labelId="lock-withdraw-token-label"
             value={selectedTokenAddress ?? ''}
             onChange={(event) => {
               setSelectedTokenAddress(event.target.value as `0x${string}`);
@@ -260,11 +307,11 @@ const WithdrawTab = (_props: Props) => {
           >
             {isTokensLoading ? (
               <MenuItem disabled value="">
-                Loading...
+                {intl.formatMessage({ id: 'app.common.loading', defaultMessage: 'Loading...' })}
               </MenuItem>
             ) : tokens.length === 0 ? (
               <MenuItem disabled value="">
-                No tokens available
+                {intl.formatMessage({ id: 'app.common.noTokensAvailable', defaultMessage: 'No tokens available' })}
               </MenuItem>
             ) : null}
             {tokens.map((token) => (
@@ -274,13 +321,31 @@ const WithdrawTab = (_props: Props) => {
             ))}
           </StyledSelect>
           <Tooltip title={getTokenTooltip()} arrow>
-            <IconButton onClick={handleCopyAddress} disabled={!selectedTokenAddress} size="small">
+            <IconButton
+              onClick={handleCopyAddress}
+              disabled={!selectedTokenAddress}
+              size="small"
+              aria-label={intl.formatMessage(
+                { id: 'app.common.copyAddress', defaultMessage: 'Copy {symbol} contract address' },
+                { symbol: tokenLabel }
+              )}
+              aria-describedby={selectedTokenAddress ? 'lock-withdraw-token-address' : undefined}
+            >
               <ContentCopyIcon fontSize="small" />
             </IconButton>
           </Tooltip>
+          {/* the tooltip text is visual only, so the same value is exposed to the a11y tree */}
+          <Box component="span" id="lock-withdraw-token-address" sx={visuallyHidden}>
+            {getTokenTooltip()}
+          </Box>
         </Box>
 
         <Box
+          role="group"
+          aria-label={intl.formatMessage(
+            { id: 'app.common.presetAmount', defaultMessage: 'Preset {symbol} amount' },
+            { symbol: tokenLabel }
+          )}
           sx={{
             display: 'flex',
             gap: 1,
@@ -291,6 +356,11 @@ const WithdrawTab = (_props: Props) => {
             variant="outlined"
             size="small"
             onClick={() => handlePercentClick(25, coolingDownAmount ?? 0n)}
+            aria-pressed={activePercentage === 25}
+            aria-label={intl.formatMessage(
+              { id: 'app.lockWithdraw.percentOfCooled', defaultMessage: '{percent}% of cooled down {symbol}' },
+              { percent: 25, symbol: tokenLabel }
+            )}
             sx={{
               flex: 1,
               bgcolor: activePercentage === 25 ? theme.palette.secondary.main : 'transparent',
@@ -303,6 +373,11 @@ const WithdrawTab = (_props: Props) => {
             variant="outlined"
             size="small"
             onClick={() => handlePercentClick(50, coolingDownAmount ?? 0n)}
+            aria-pressed={activePercentage === 50}
+            aria-label={intl.formatMessage(
+              { id: 'app.lockWithdraw.percentOfCooled', defaultMessage: '{percent}% of cooled down {symbol}' },
+              { percent: 50, symbol: tokenLabel }
+            )}
             sx={{
               flex: 1,
               bgcolor: activePercentage === 50 ? theme.palette.secondary.main : 'transparent',
@@ -315,6 +390,11 @@ const WithdrawTab = (_props: Props) => {
             variant="outlined"
             size="small"
             onClick={() => handlePercentClick(75, coolingDownAmount ?? 0n)}
+            aria-pressed={activePercentage === 75}
+            aria-label={intl.formatMessage(
+              { id: 'app.lockWithdraw.percentOfCooled', defaultMessage: '{percent}% of cooled down {symbol}' },
+              { percent: 75, symbol: tokenLabel }
+            )}
             sx={{
               flex: 1,
               bgcolor: activePercentage === 75 ? theme.palette.secondary.main : 'transparent',
@@ -327,13 +407,18 @@ const WithdrawTab = (_props: Props) => {
             variant="outlined"
             size="small"
             onClick={() => handlePercentClick(100, coolingDownAmount ?? 0n)}
+            aria-pressed={activePercentage === 100}
+            aria-label={intl.formatMessage(
+              { id: 'app.lockWithdraw.maxCooled', defaultMessage: 'Max cooled down {symbol}' },
+              { symbol: tokenLabel }
+            )}
             sx={{
               flex: 1,
               bgcolor: activePercentage === 100 ? theme.palette.secondary.main : 'transparent',
               color: activePercentage === 100 ? theme.palette.background.paper : 'inherit'
             }}
           >
-            Max
+            {intl.formatMessage({ id: 'app.common.max', defaultMessage: 'Max' })}
           </Button>
         </Box>
       </Box>
@@ -360,8 +445,11 @@ const WithdrawTab = (_props: Props) => {
             margin: '10px 0'
           }}
         >
-          <Typography variant="h4" fontWeight="normal">
-            Cooling down: {coolingDownDisplay} {selectedToken?.symbol ?? 'Token'}
+          <Typography id="lock-withdraw-cooling-value" variant="h4" component="p" fontWeight="normal">
+            {intl.formatMessage(
+              { id: 'app.lockWithdraw.coolingDown', defaultMessage: 'Cooling down: {amount} {symbol}' },
+              { amount: coolingDownDisplay, symbol: tokenLabel }
+            )}
           </Typography>
           <Box sx={{ flex: 1 }}>{renderStatus()}</Box>
         </Box>
@@ -372,7 +460,14 @@ const WithdrawTab = (_props: Props) => {
             alignItems: 'center'
           }}
         >
-          <Button variant="contained" fullWidth onClick={handleWithdraw} disabled={isButtonDisabled}>
+          <Button
+            variant="contained"
+            fullWidth
+            onClick={handleWithdraw}
+            disabled={isButtonDisabled}
+            aria-label={submitAccessibleName}
+            aria-describedby="lock-withdraw-cooling-value lock-withdraw-status"
+          >
             {buttonText}
           </Button>
         </Box>

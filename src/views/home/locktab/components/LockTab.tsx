@@ -3,6 +3,7 @@ import Button from '@mui/material/Button';
 import { IconButton, MenuItem, SelectChangeEvent, Tooltip, Typography } from '@mui/material';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
+import { useIntl } from 'react-intl';
 import { useAccount, useReadContract } from 'wagmi';
 import { formatTokenBalance } from 'utils/formatters';
 
@@ -19,6 +20,7 @@ import { useLockTokenOptions } from '../hooks/useLockTokenOptions';
 import { LP_TOKEN_NAMES } from '@/appconfig';
 import { useBalanceRefresh } from 'contexts/BalanceRefreshContext';
 import { dispatchSuccess, dispatchError } from 'utils/snackbar';
+import { describedBy, visuallyHidden } from 'utils/a11y';
 
 interface LockTokenMeta {
   token: string;
@@ -34,6 +36,7 @@ interface Props {
 
 const LockTab = (_props: Props) => {
   const theme = useTheme();
+  const intl = useIntl();
   const { address: userAddress } = useAccount();
   const { config: chainConfig } = useConfigChainId();
   const { tokens, isLoading: isTokensLoading } = useLockTokenOptions();
@@ -108,18 +111,41 @@ const LockTab = (_props: Props) => {
     return parsedAmount > tokenMeta.balance;
   }, [parsedAmount, tokenMeta.balance]);
 
-  const buttonText = useMemo(() => {
-    if (!formattedAmount) return 'Enter amount';
-    if (isAmountExceedsBalance) return 'Insufficient balance';
+  // The button state is derived separately from its label so that translated copy
+  // never has to be compared against English literals.
+  const buttonState = useMemo(() => {
+    if (!formattedAmount) return 'enterAmount' as const;
+    if (isAmountExceedsBalance) return 'insufficientBalance' as const;
     if (!isAllowanceSufficient) {
-      if (approveTx.txState === 'submitting' || approveTx.txState === 'submitted') return 'Approving...';
-      if (approveTx.txState === 'error') return 'Approval failed - retry';
-      return `Approve ${tokenMeta.token}`;
+      if (approveTx.txState === 'submitting' || approveTx.txState === 'submitted') return 'approving' as const;
+      if (approveTx.txState === 'error') return 'approveRetry' as const;
+      return 'approve' as const;
     }
-    if (lockTx.txState === 'submitting' || lockTx.txState === 'submitted') return 'Locking...';
-    if (lockTx.txState === 'error') return 'Lock failed - retry';
-    return 'Lock';
-  }, [approveTx.txState, formattedAmount, isAllowanceSufficient, isAmountExceedsBalance, lockTx.txState, tokenMeta.token]);
+    if (lockTx.txState === 'submitting' || lockTx.txState === 'submitted') return 'locking' as const;
+    if (lockTx.txState === 'error') return 'retry' as const;
+    return 'submit' as const;
+  }, [approveTx.txState, formattedAmount, isAllowanceSufficient, isAmountExceedsBalance, lockTx.txState]);
+
+  const buttonText = useMemo(() => {
+    switch (buttonState) {
+      case 'enterAmount':
+        return intl.formatMessage({ id: 'app.common.enterAmount', defaultMessage: 'Enter amount' });
+      case 'insufficientBalance':
+        return intl.formatMessage({ id: 'app.common.insufficientBalance', defaultMessage: 'Insufficient balance' });
+      case 'approving':
+        return intl.formatMessage({ id: 'app.stake.approving', defaultMessage: 'Approving...' });
+      case 'approveRetry':
+        return intl.formatMessage({ id: 'app.stake.approveRetry', defaultMessage: 'Approval failed - retry' });
+      case 'approve':
+        return intl.formatMessage({ id: 'app.stake.approve', defaultMessage: 'Approve {symbol}' }, { symbol: tokenMeta.token });
+      case 'locking':
+        return intl.formatMessage({ id: 'app.lock.locking', defaultMessage: 'Locking...' });
+      case 'retry':
+        return intl.formatMessage({ id: 'app.lock.retry', defaultMessage: 'Lock failed - retry' });
+      default:
+        return intl.formatMessage({ id: 'app.lock.submit', defaultMessage: 'Lock' });
+    }
+  }, [buttonState, intl, tokenMeta.token]);
 
   const isButtonDisabled = useMemo(() => {
     if (!formattedAmount || !parsedAmount || parsedAmount === 0n) return true;
@@ -142,12 +168,16 @@ const LockTab = (_props: Props) => {
   ]);
 
   const statusMessage = useMemo(() => {
-    if (approveTx.txState === 'submitted') return 'Approval submitted, waiting for confirmation...';
-    if (approveTx.txState === 'error') return 'Approval failed, please retry.';
-    if (lockTx.txState === 'submitted') return 'Lock submitted, waiting for confirmation...';
-    if (lockTx.txState === 'error') return 'Lock failed, please retry.';
+    if (approveTx.txState === 'submitted')
+      return intl.formatMessage({ id: 'app.tx.approvalSubmitted', defaultMessage: 'Approval submitted, waiting for confirmation...' });
+    if (approveTx.txState === 'error')
+      return intl.formatMessage({ id: 'app.tx.approvalFailedRetry', defaultMessage: 'Approval failed, please retry.' });
+    if (lockTx.txState === 'submitted')
+      return intl.formatMessage({ id: 'app.tx.lockSubmitted', defaultMessage: 'Lock submitted, waiting for confirmation...' });
+    if (lockTx.txState === 'error')
+      return intl.formatMessage({ id: 'app.tx.lockFailedRetry', defaultMessage: 'Lock failed, please retry.' });
     return null;
-  }, [approveTx.txState, lockTx.txState]);
+  }, [approveTx.txState, intl, lockTx.txState]);
 
   const submitLock = useCallback(
     async (amount: bigint) => {
@@ -189,45 +219,56 @@ const LockTab = (_props: Props) => {
   useEffect(() => {
     if (prevApproveTxState.current !== approveTx.txState) {
       if (approveTx.txState === 'confirmed') {
-        dispatchSuccess('Approval confirmed');
+        dispatchSuccess(intl.formatMessage({ id: 'app.tx.approvalConfirmed', defaultMessage: 'Approval confirmed' }));
         refetchAllowance();
       } else if (approveTx.txState === 'error') {
-        dispatchError('Approval failed');
+        dispatchError(intl.formatMessage({ id: 'app.tx.approvalFailed', defaultMessage: 'Approval failed' }));
       }
       prevApproveTxState.current = approveTx.txState;
     }
-  }, [approveTx.txState, refetchAllowance]);
+  }, [approveTx.txState, intl, refetchAllowance]);
 
   const prevLockTxState = useRef(lockTx.txState);
   useEffect(() => {
     if (prevLockTxState.current !== lockTx.txState) {
       if (lockTx.txState === 'confirmed') {
-        dispatchSuccess('Lock confirmed');
+        dispatchSuccess(intl.formatMessage({ id: 'app.tx.lockConfirmed', defaultMessage: 'Lock confirmed' }));
         setPendingAmount(null);
         resetAmount();
         refetchSelectedBalance();
         refetchAllowance();
         refetchBalances();
       } else if (lockTx.txState === 'error') {
-        dispatchError('Lock failed');
+        dispatchError(intl.formatMessage({ id: 'app.tx.lockFailed', defaultMessage: 'Lock failed' }));
       }
       prevLockTxState.current = lockTx.txState;
     }
-  }, [lockTx.txState, resetAmount, refetchAllowance, refetchBalances, refetchSelectedBalance]);
+  }, [intl, lockTx.txState, resetAmount, refetchAllowance, refetchBalances, refetchSelectedBalance]);
 
   useEffect(() => {
     resetAmount();
     setPendingAmount(null);
   }, [resetAmount, tokenMeta.tokenAddress]);
 
-  const renderStatus = () => {
-    if (!statusMessage) return null;
-    return (
-      <Typography variant="body2" color="text.secondary">
-        {statusMessage}
-      </Typography>
-    );
-  };
+  const isStatusError = approveTx.txState === 'error' || lockTx.txState === 'error';
+
+  const submitAccessibleName =
+    buttonState === 'submit'
+      ? intl.formatMessage({ id: 'app.lock.submitToken', defaultMessage: 'Lock {symbol}' }, { symbol: tokenMeta.token })
+      : undefined;
+
+  // Always-rendered live region so transaction updates reach assistive tech.
+  const renderStatus = () => (
+    <Typography
+      key={isStatusError ? 'alert' : 'status'}
+      id="lock-status"
+      role={isStatusError ? 'alert' : 'status'}
+      variant="body2"
+      color="text.secondary"
+    >
+      {statusMessage ?? ''}
+    </Typography>
+  );
 
   const formatDuration = (totalSeconds: number) => {
     if (!Number.isFinite(totalSeconds) || totalSeconds <= 0) return '0s';
@@ -247,8 +288,8 @@ const LockTab = (_props: Props) => {
   };
 
   const renderTokenValue = () => {
-    if (isTokensLoading) return 'Loading...';
-    if (!selectedTokenAddress) return 'Select token';
+    if (isTokensLoading) return intl.formatMessage({ id: 'app.common.loading', defaultMessage: 'Loading...' });
+    if (!selectedTokenAddress) return intl.formatMessage({ id: 'app.common.selectToken', defaultMessage: 'Select token' });
     return selectedToken?.symbol ?? selectedTokenAddress;
   };
 
@@ -299,9 +340,9 @@ const LockTab = (_props: Props) => {
             }}
           >
             <Typography variant="body2" color="text.main" fontWeight="bold">
-              Lock {tokenMeta.token}
+              {intl.formatMessage({ id: 'app.lock.heading', defaultMessage: 'Lock {symbol}' }, { symbol: tokenMeta.token })}
             </Typography>
-            <Typography variant="body2">Lock Amount:</Typography>
+            <Typography variant="body2">{intl.formatMessage({ id: 'app.lock.amountLabel', defaultMessage: 'Lock Amount:' })}</Typography>
           </Box>
         </Box>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
@@ -311,12 +352,25 @@ const LockTab = (_props: Props) => {
             value={formattedAmount}
             onChange={(e) => handleAmountChange(e.target.value)}
             placeholder="0"
-            inputProps={{ inputMode: 'decimal', pattern: '[0-9.,]*' }}
+            inputProps={{
+              inputMode: 'decimal',
+              pattern: '[0-9.,]*',
+              'aria-label': intl.formatMessage(
+                { id: 'app.lock.amountInput', defaultMessage: 'Amount of {symbol} to lock' },
+                { symbol: tokenMeta.token }
+              ),
+              'aria-describedby': describedBy('lock-balance-value', 'lock-cooldown-info', 'lock-status'),
+              'aria-invalid': isAmountExceedsBalance || undefined
+            }}
             sx={{ flex: 1 }}
           />
+          <Box component="span" id="lock-token-label" sx={visuallyHidden}>
+            {intl.formatMessage({ id: 'app.lock.tokenLabel', defaultMessage: 'Token to lock' })}
+          </Box>
           <StyledSelect
             id="lockToken"
             name="lockToken"
+            labelId="lock-token-label"
             value={selectedTokenAddress ?? ''}
             onChange={handleTokenChange}
             variant="outlined"
@@ -326,11 +380,11 @@ const LockTab = (_props: Props) => {
           >
             {isTokensLoading ? (
               <MenuItem disabled value="">
-                Loading...
+                {intl.formatMessage({ id: 'app.common.loading', defaultMessage: 'Loading...' })}
               </MenuItem>
             ) : tokens.length === 0 ? (
               <MenuItem disabled value="">
-                No tokens available
+                {intl.formatMessage({ id: 'app.common.noTokensAvailable', defaultMessage: 'No tokens available' })}
               </MenuItem>
             ) : null}
             {tokens.map((token) => (
@@ -340,13 +394,31 @@ const LockTab = (_props: Props) => {
             ))}
           </StyledSelect>
           <Tooltip title={getTokenTooltip()} arrow>
-            <IconButton onClick={handleCopyAddress} disabled={!selectedTokenAddress} size="small">
+            <IconButton
+              onClick={handleCopyAddress}
+              disabled={!selectedTokenAddress}
+              size="small"
+              aria-label={intl.formatMessage(
+                { id: 'app.common.copyAddress', defaultMessage: 'Copy {symbol} contract address' },
+                { symbol: selectedToken?.symbol ?? 'token' }
+              )}
+              aria-describedby={selectedTokenAddress ? 'lock-token-address' : undefined}
+            >
               <ContentCopyIcon fontSize="small" />
             </IconButton>
           </Tooltip>
+          {/* the tooltip text is visual only, so the same value is exposed to the a11y tree */}
+          <Box component="span" id="lock-token-address" sx={visuallyHidden}>
+            {getTokenTooltip()}
+          </Box>
         </Box>
 
         <Box
+          role="group"
+          aria-label={intl.formatMessage(
+            { id: 'app.common.presetAmount', defaultMessage: 'Preset {symbol} amount' },
+            { symbol: tokenMeta.token }
+          )}
           sx={{
             display: 'flex',
             gap: 1,
@@ -357,6 +429,11 @@ const LockTab = (_props: Props) => {
             variant="outlined"
             size="small"
             onClick={() => handlePercentClick(25, tokenMeta.balance)}
+            aria-pressed={activePercentage === 25}
+            aria-label={intl.formatMessage(
+              { id: 'app.common.percentOfBalance', defaultMessage: '{percent}% of available {symbol} balance' },
+              { percent: 25, symbol: tokenMeta.token }
+            )}
             sx={{
               flex: 1,
               bgcolor: activePercentage === 25 ? theme.palette.secondary.main : 'transparent',
@@ -369,6 +446,11 @@ const LockTab = (_props: Props) => {
             variant="outlined"
             size="small"
             onClick={() => handlePercentClick(50, tokenMeta.balance)}
+            aria-pressed={activePercentage === 50}
+            aria-label={intl.formatMessage(
+              { id: 'app.common.percentOfBalance', defaultMessage: '{percent}% of available {symbol} balance' },
+              { percent: 50, symbol: tokenMeta.token }
+            )}
             sx={{
               flex: 1,
               bgcolor: activePercentage === 50 ? theme.palette.secondary.main : 'transparent',
@@ -381,6 +463,11 @@ const LockTab = (_props: Props) => {
             variant="outlined"
             size="small"
             onClick={() => handlePercentClick(75, tokenMeta.balance)}
+            aria-pressed={activePercentage === 75}
+            aria-label={intl.formatMessage(
+              { id: 'app.common.percentOfBalance', defaultMessage: '{percent}% of available {symbol} balance' },
+              { percent: 75, symbol: tokenMeta.token }
+            )}
             sx={{
               flex: 1,
               bgcolor: activePercentage === 75 ? theme.palette.secondary.main : 'transparent',
@@ -393,13 +480,18 @@ const LockTab = (_props: Props) => {
             variant="outlined"
             size="small"
             onClick={() => handlePercentClick(100, tokenMeta.balance)}
+            aria-pressed={activePercentage === 100}
+            aria-label={intl.formatMessage(
+              { id: 'app.common.maxOfBalance', defaultMessage: 'Max available {symbol} balance' },
+              { symbol: tokenMeta.token }
+            )}
             sx={{
               flex: 1,
               bgcolor: activePercentage === 100 ? theme.palette.secondary.main : 'transparent',
               color: activePercentage === 100 ? theme.palette.background.paper : 'inherit'
             }}
           >
-            Max
+            {intl.formatMessage({ id: 'app.common.max', defaultMessage: 'Max' })}
           </Button>
         </Box>
       </Box>
@@ -416,8 +508,11 @@ const LockTab = (_props: Props) => {
           mt: '-25px'
         }}
       >
-        <Typography variant="body2" color="text.secondary">
-          Cooldown: {formatDuration(Number(tokenMeta.cooldown))} before withdrawal.
+        <Typography id="lock-cooldown-info" variant="body2" color="text.secondary">
+          {intl.formatMessage(
+            { id: 'app.lock.cooldownInfo', defaultMessage: 'Cooldown: {duration} before withdrawal.' },
+            { duration: formatDuration(Number(tokenMeta.cooldown)) }
+          )}
         </Typography>
         <Box
           sx={{
@@ -429,8 +524,11 @@ const LockTab = (_props: Props) => {
             margin: '10px 0'
           }}
         >
-          <Typography variant="h4" fontWeight="normal">
-            Balance: {selectedBalanceDisplay} {tokenMeta.token}
+          <Typography id="lock-balance-value" variant="h4" component="p" fontWeight="normal">
+            {intl.formatMessage(
+              { id: 'app.common.balance', defaultMessage: 'Balance: {amount} {symbol}' },
+              { amount: selectedBalanceDisplay, symbol: tokenMeta.token }
+            )}
           </Typography>
           <Box sx={{ flex: 1 }}>{renderStatus()}</Box>
         </Box>
@@ -441,7 +539,14 @@ const LockTab = (_props: Props) => {
             alignItems: 'center'
           }}
         >
-          <Button variant="contained" fullWidth onClick={handleLock} disabled={isButtonDisabled}>
+          <Button
+            variant="contained"
+            fullWidth
+            onClick={handleLock}
+            disabled={isButtonDisabled}
+            aria-label={submitAccessibleName}
+            aria-describedby="lock-balance-value lock-cooldown-info lock-status"
+          >
             {buttonText}
           </Button>
         </Box>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useIntl } from 'react-intl';
 
 import { useWriteTransaction } from 'hooks/useWriteTransaction';
 import { UnstakeTokenMeta } from './useUnstakeTokenSelection';
@@ -11,6 +12,7 @@ interface UseWithdrawTransactionsParams {
 }
 
 export const useWithdrawTransactions = ({ tokenMeta, userAddress, onWithdrawConfirmed }: UseWithdrawTransactionsParams) => {
+  const intl = useIntl();
   const withdrawTx = useWriteTransaction();
 
   const handleWithdraw = useCallback(async () => {
@@ -28,21 +30,24 @@ export const useWithdrawTransactions = ({ tokenMeta, userAddress, onWithdrawConf
   useEffect(() => {
     if (prevWithdrawTxState.current !== withdrawTx.txState) {
       if (withdrawTx.txState === 'confirmed') {
-        dispatchSuccess('Withdraw confirmed');
+        dispatchSuccess(intl.formatMessage({ id: 'app.tx.withdrawConfirmed', defaultMessage: 'Withdraw confirmed' }));
         onWithdrawConfirmed?.();
       } else if (withdrawTx.txState === 'error') {
-        dispatchError('Withdraw failed');
+        dispatchError(intl.formatMessage({ id: 'app.tx.withdrawFailed', defaultMessage: 'Withdraw failed' }));
       }
       prevWithdrawTxState.current = withdrawTx.txState;
     }
-  }, [onWithdrawConfirmed, withdrawTx.txState]);
+  }, [intl, onWithdrawConfirmed, withdrawTx.txState]);
 
   const statusMessage = useMemo(() => {
-    if (withdrawTx.txState === 'submitted') return 'Withdraw transaction submitted...';
-    if (withdrawTx.txState === 'error') return 'Withdraw transaction failed. Please retry.';
-    if (withdrawTx.txState === 'confirmed') return 'Withdraw successful.';
+    if (withdrawTx.txState === 'submitted')
+      return intl.formatMessage({ id: 'app.tx.withdrawTxSubmitted', defaultMessage: 'Withdraw transaction submitted...' });
+    if (withdrawTx.txState === 'error')
+      return intl.formatMessage({ id: 'app.tx.withdrawTxFailed', defaultMessage: 'Withdraw transaction failed. Please retry.' });
+    if (withdrawTx.txState === 'confirmed')
+      return intl.formatMessage({ id: 'app.tx.withdrawTxSuccess', defaultMessage: 'Withdraw successful.' });
     return null;
-  }, [withdrawTx.txState]);
+  }, [intl, withdrawTx.txState]);
 
   return { handleWithdraw, withdrawTx, statusMessage };
 };

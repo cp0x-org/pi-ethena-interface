@@ -2,6 +2,7 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import { MenuItem, SelectChangeEvent, Typography } from '@mui/material';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useIntl } from 'react-intl';
 import { useAccount, useChainId, useReadContract } from 'wagmi';
 
 import { useTheme } from '@mui/material/styles';
@@ -16,6 +17,7 @@ import { useStakeTokenSelection } from '../hooks/useStakeTokenSelection';
 import { useStakeTransactions } from '../hooks/useStakeTransactions';
 import { getActiveStakeNetworks, getStakeNetworkByKey, type StakeNetwork } from '../stakeNetworks';
 import { useBalanceRefresh } from 'contexts/BalanceRefreshContext';
+import { describedBy, visuallyHidden } from 'utils/a11y';
 
 interface Props {
   balances: BalancesData;
@@ -25,6 +27,7 @@ const ETHEREUM_CHAIN_ID = 1;
 
 const StakeTab = ({ balances }: Props) => {
   const theme = useTheme();
+  const intl = useIntl();
   const { address: userAddress } = useAccount();
   const activeChainId = useChainId();
   const { refetchBalances } = useBalanceRefresh();
@@ -133,22 +136,27 @@ const StakeTab = ({ balances }: Props) => {
     return activeChainId !== requiredChainId;
   }, [activeChainId, requiredChainId]);
 
-  const buttonText = useMemo(() => {
-    if (isNetworkMismatch) return requiredNetworkLabel ? `Switch to ${requiredNetworkLabel}` : 'Switch network';
-    if (allowanceChecking) return 'Checking allowance...';
-    if (!formattedAmount) return 'Enter amount';
-    if (isAmountExceedsBalance) return 'Insufficient balance';
+  // Ticker as it is spelled in the UI, used for labels only.
+  const tokenLabel = tokenMeta.token === 'USDE' ? 'USDe' : 'ENA';
+
+  // The button state is derived separately from its label so that translated copy
+  // never has to be compared against English literals.
+  const buttonState = useMemo(() => {
+    if (isNetworkMismatch) return 'switchNetwork' as const;
+    if (allowanceChecking) return 'checkingAllowance' as const;
+    if (!formattedAmount) return 'enterAmount' as const;
+    if (isAmountExceedsBalance) return 'insufficientBalance' as const;
 
     if (!isAllowanceSufficient) {
-      if (approveTx.txState === 'submitting' || approveTx.txState === 'submitted') return 'Approving...';
-      if (approveTx.txState === 'error') return 'Approval failed - retry';
-      return `Approve ${tokenMeta.token}`;
+      if (approveTx.txState === 'submitting' || approveTx.txState === 'submitted') return 'approving' as const;
+      if (approveTx.txState === 'error') return 'approveRetry' as const;
+      return 'approve' as const;
     }
 
-    if (stakeTx.txState === 'submitting' || stakeTx.txState === 'submitted') return 'Staking...';
-    if (stakeTx.txState === 'error') return 'Stake failed - retry';
+    if (stakeTx.txState === 'submitting' || stakeTx.txState === 'submitted') return 'staking' as const;
+    if (stakeTx.txState === 'error') return 'retry' as const;
 
-    return 'Stake';
+    return 'submit' as const;
   }, [
     allowanceChecking,
     approveTx.txState,
@@ -156,10 +164,35 @@ const StakeTab = ({ balances }: Props) => {
     isAllowanceSufficient,
     isAmountExceedsBalance,
     isNetworkMismatch,
-    requiredNetworkLabel,
-    stakeTx.txState,
-    tokenMeta.token
+    stakeTx.txState
   ]);
+
+  const buttonText = useMemo(() => {
+    switch (buttonState) {
+      case 'switchNetwork':
+        return requiredNetworkLabel
+          ? intl.formatMessage({ id: 'app.stake.switchTo', defaultMessage: 'Switch to {network}' }, { network: requiredNetworkLabel })
+          : intl.formatMessage({ id: 'app.stake.switchNetwork', defaultMessage: 'Switch network' });
+      case 'checkingAllowance':
+        return intl.formatMessage({ id: 'app.stake.checkingAllowance', defaultMessage: 'Checking allowance...' });
+      case 'enterAmount':
+        return intl.formatMessage({ id: 'app.common.enterAmount', defaultMessage: 'Enter amount' });
+      case 'insufficientBalance':
+        return intl.formatMessage({ id: 'app.common.insufficientBalance', defaultMessage: 'Insufficient balance' });
+      case 'approving':
+        return intl.formatMessage({ id: 'app.stake.approving', defaultMessage: 'Approving...' });
+      case 'approveRetry':
+        return intl.formatMessage({ id: 'app.stake.approveRetry', defaultMessage: 'Approval failed - retry' });
+      case 'approve':
+        return intl.formatMessage({ id: 'app.stake.approve', defaultMessage: 'Approve {symbol}' }, { symbol: tokenMeta.token });
+      case 'staking':
+        return intl.formatMessage({ id: 'app.stake.staking', defaultMessage: 'Staking...' });
+      case 'retry':
+        return intl.formatMessage({ id: 'app.stake.retry', defaultMessage: 'Stake failed - retry' });
+      default:
+        return intl.formatMessage({ id: 'app.stake.submit', defaultMessage: 'Stake' });
+    }
+  }, [buttonState, intl, requiredNetworkLabel, tokenMeta.token]);
 
   const isButtonDisabled = useMemo(() => {
     if (isNetworkMismatch) return true;
@@ -173,27 +206,40 @@ const StakeTab = ({ balances }: Props) => {
 
   const networkStatusMessage = useMemo(() => {
     if (!isNetworkMismatch) return null;
-    if (requiredNetworkLabel) return `Switch wallet to ${requiredNetworkLabel} to continue.`;
-    return 'Switch wallet network to continue.';
-  }, [isNetworkMismatch, requiredNetworkLabel]);
+    if (requiredNetworkLabel)
+      return intl.formatMessage(
+        { id: 'app.stake.switchWalletTo', defaultMessage: 'Switch wallet to {network} to continue.' },
+        { network: requiredNetworkLabel }
+      );
+    return intl.formatMessage({ id: 'app.stake.switchWallet', defaultMessage: 'Switch wallet network to continue.' });
+  }, [intl, isNetworkMismatch, requiredNetworkLabel]);
 
   const showUnstakeWarning = useMemo(() => stakeNetwork !== 'ethereum', [stakeNetwork]);
 
-  const renderStatus = () => {
-    if (networkStatusMessage) {
-      return (
-        <Typography variant="body2" color="text.secondary">
-          {networkStatusMessage}
-        </Typography>
-      );
-    }
-    if (!statusMessage) return null;
-    return (
-      <Typography variant="body2" color="text.secondary">
-        {statusMessage}
-      </Typography>
-    );
-  };
+  const isStatusError = approveTx.txState === 'error' || stakeTx.txState === 'error';
+
+  const amountDescribedBy = describedBy('stake-balance-value', tokenMeta.token === 'USDE' ? 'stake-receive' : null, 'stake-status');
+
+  // The visible label already carries the state (`Approve ENA`, `Insufficient balance`, ...),
+  // so it is only extended when it is a bare verb that lacks the token context.
+  const submitAccessibleName =
+    buttonState === 'submit'
+      ? intl.formatMessage({ id: 'app.stake.submitToken', defaultMessage: 'Stake {symbol}' }, { symbol: tokenLabel })
+      : undefined;
+
+  // The live region is always rendered so async transaction updates are announced.
+  // `role="alert"` remounts the node, which makes failures assertive instead of polite.
+  const renderStatus = () => (
+    <Typography
+      key={isStatusError ? 'alert' : 'status'}
+      id="stake-status"
+      role={isStatusError ? 'alert' : 'status'}
+      variant="body2"
+      color="text.secondary"
+    >
+      {networkStatusMessage ?? statusMessage ?? ''}
+    </Typography>
+  );
 
   useEffect(() => {
     if (tokenMeta.token !== 'USDE') return;
@@ -262,9 +308,9 @@ const StakeTab = ({ balances }: Props) => {
             }}
           >
             <Typography variant="body2" color="text.main" fontWeight="bold">
-              Stake
+              {intl.formatMessage({ id: 'app.stake.heading', defaultMessage: 'Stake' })}
             </Typography>
-            <Typography variant="body2">Stake Amount:</Typography>
+            <Typography variant="body2">{intl.formatMessage({ id: 'app.stake.amountLabel', defaultMessage: 'Stake Amount:' })}</Typography>
           </Box>
           <Box
             sx={{
@@ -283,40 +329,68 @@ const StakeTab = ({ balances }: Props) => {
             value={formattedAmount}
             onChange={(e) => handleAmountChange(e.target.value)}
             placeholder="0"
-            inputProps={{ inputMode: 'decimal', pattern: '[0-9.,]*' }}
+            inputProps={{
+              inputMode: 'decimal',
+              pattern: '[0-9.,]*',
+              'aria-label': intl.formatMessage(
+                { id: 'app.stake.amountInput', defaultMessage: 'Amount of {symbol} to stake' },
+                { symbol: tokenLabel }
+              ),
+              'aria-describedby': amountDescribedBy,
+              'aria-invalid': isAmountExceedsBalance || undefined
+            }}
             sx={{ flex: 1 }}
           />
-          <StyledSelect id="stakeToken" name="stakeToken" value={stakeTokenAddress} onChange={handleChangeStakeToken} variant="outlined">
+          <Box component="span" id="stake-token-label" sx={visuallyHidden}>
+            {intl.formatMessage({ id: 'app.stake.tokenLabel', defaultMessage: 'Token to stake' })}
+          </Box>
+          <StyledSelect
+            id="stakeToken"
+            name="stakeToken"
+            labelId="stake-token-label"
+            value={stakeTokenAddress}
+            onChange={handleChangeStakeToken}
+            variant="outlined"
+          >
             <MenuItem value={tokenOptions.ENA}>ENA</MenuItem>
             <MenuItem value={tokenOptions.USDE}>USDe</MenuItem>
           </StyledSelect>
           {tokenMeta.token === 'USDE' && (
-            <StyledSelect
-              id="stakeNetwork"
-              name="stakeNetwork"
-              value={stakeNetworkValue}
-              onChange={handleChangeStakeNetwork}
-              variant="outlined"
-              disabled={!hasActiveStakeNetworks}
-            >
-              {!hasActiveStakeNetworks && (
-                <MenuItem value="" disabled>
-                  No networks with RPC
-                </MenuItem>
-              )}
-              {activeStakeNetworks.map((network) => (
-                <MenuItem key={network.key} value={network.key}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Box component="img" src={network.iconSrc} alt={`${network.label} icon`} sx={{ width: 20, height: 20 }} />
-                    <span>{network.label}</span>
-                  </Box>
-                </MenuItem>
-              ))}
-            </StyledSelect>
+            <>
+              <Box component="span" id="stake-network-label" sx={visuallyHidden}>
+                {intl.formatMessage({ id: 'app.stake.networkLabel', defaultMessage: 'Network to stake on' })}
+              </Box>
+              <StyledSelect
+                id="stakeNetwork"
+                name="stakeNetwork"
+                labelId="stake-network-label"
+                value={stakeNetworkValue}
+                onChange={handleChangeStakeNetwork}
+                variant="outlined"
+                disabled={!hasActiveStakeNetworks}
+                inputProps={{ 'aria-describedby': showUnstakeWarning ? 'stake-network-warning' : undefined }}
+              >
+                {!hasActiveStakeNetworks && (
+                  <MenuItem value="" disabled>
+                    {intl.formatMessage({ id: 'app.stake.noNetworks', defaultMessage: 'No networks with RPC' })}
+                  </MenuItem>
+                )}
+                {activeStakeNetworks.map((network) => (
+                  <MenuItem key={network.key} value={network.key}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      {/* decorative: the network name is right next to the icon */}
+                      <Box component="img" src={network.iconSrc} alt="" sx={{ width: 20, height: 20 }} />
+                      <span>{network.label}</span>
+                    </Box>
+                  </MenuItem>
+                ))}
+              </StyledSelect>
+            </>
           )}
         </Box>
         {tokenMeta.token === 'USDE' && (
           <Box
+            id="stake-receive"
             sx={{
               display: 'flex',
               justifyContent: 'space-between',
@@ -324,7 +398,7 @@ const StakeTab = ({ balances }: Props) => {
             }}
           >
             <Typography variant="body2" color="text.secondary">
-              You receive (sUSDe)
+              {intl.formatMessage({ id: 'app.stake.youReceive', defaultMessage: 'You receive (sUSDe)' })}
             </Typography>
             <Typography variant="body2" color="text.main">
               {internalAmountDisplay} sUSDe
@@ -333,6 +407,11 @@ const StakeTab = ({ balances }: Props) => {
         )}
 
         <Box
+          role="group"
+          aria-label={intl.formatMessage(
+            { id: 'app.common.presetAmount', defaultMessage: 'Preset {symbol} amount' },
+            { symbol: tokenLabel }
+          )}
           sx={{
             display: 'flex',
             gap: 1,
@@ -343,6 +422,11 @@ const StakeTab = ({ balances }: Props) => {
             variant="outlined"
             size="small"
             onClick={() => handlePercentClick(25, effectiveBalance)}
+            aria-pressed={activePercentage === 25}
+            aria-label={intl.formatMessage(
+              { id: 'app.common.percentOfBalance', defaultMessage: '{percent}% of available {symbol} balance' },
+              { percent: 25, symbol: tokenLabel }
+            )}
             sx={{
               flex: 1,
               bgcolor: activePercentage === 25 ? theme.palette.secondary.main : 'transparent',
@@ -355,6 +439,11 @@ const StakeTab = ({ balances }: Props) => {
             variant="outlined"
             size="small"
             onClick={() => handlePercentClick(50, effectiveBalance)}
+            aria-pressed={activePercentage === 50}
+            aria-label={intl.formatMessage(
+              { id: 'app.common.percentOfBalance', defaultMessage: '{percent}% of available {symbol} balance' },
+              { percent: 50, symbol: tokenLabel }
+            )}
             sx={{
               flex: 1,
               bgcolor: activePercentage === 50 ? theme.palette.secondary.main : 'transparent',
@@ -367,6 +456,11 @@ const StakeTab = ({ balances }: Props) => {
             variant="outlined"
             size="small"
             onClick={() => handlePercentClick(75, effectiveBalance)}
+            aria-pressed={activePercentage === 75}
+            aria-label={intl.formatMessage(
+              { id: 'app.common.percentOfBalance', defaultMessage: '{percent}% of available {symbol} balance' },
+              { percent: 75, symbol: tokenLabel }
+            )}
             sx={{
               flex: 1,
               bgcolor: activePercentage === 75 ? theme.palette.secondary.main : 'transparent',
@@ -379,13 +473,18 @@ const StakeTab = ({ balances }: Props) => {
             variant="outlined"
             size="small"
             onClick={() => handlePercentClick(100, effectiveBalance)}
+            aria-pressed={activePercentage === 100}
+            aria-label={intl.formatMessage(
+              { id: 'app.common.maxOfBalance', defaultMessage: 'Max available {symbol} balance' },
+              { symbol: tokenLabel }
+            )}
             sx={{
               flex: 1,
               bgcolor: activePercentage === 100 ? theme.palette.secondary.main : 'transparent',
               color: activePercentage === 100 ? theme.palette.background.paper : 'inherit'
             }}
           >
-            Max
+            {intl.formatMessage({ id: 'app.common.max', defaultMessage: 'Max' })}
           </Button>
         </Box>
       </Box>
@@ -411,22 +510,29 @@ const StakeTab = ({ balances }: Props) => {
             margin: '10px 0'
           }}
         >
-          <Typography variant="h4" fontWeight="normal">
-            Balance: {balanceDisplay} {tokenMeta.token}
+          <Typography id="stake-balance-value" variant="h4" component="p" fontWeight="normal">
+            {intl.formatMessage(
+              { id: 'app.common.balance', defaultMessage: 'Balance: {amount} {symbol}' },
+              { amount: balanceDisplay, symbol: tokenMeta.token }
+            )}
           </Typography>
           {renderStatus()}
         </Box>
         {showUnstakeWarning && (
-          <Typography variant="body2" sx={{ color: theme.palette.warning.main, mb: 1 }}>
-            Unstake is currently only available on Ethereum. For other networks, please use bridge or swap.
+          <Typography id="stake-network-warning" variant="body2" sx={{ color: theme.palette.warning.main, mb: 1 }}>
+            {intl.formatMessage({
+              id: 'app.stake.unstakeWarning',
+              defaultMessage: 'Unstake is currently only available on Ethereum. For other networks, please use bridge or swap.'
+            })}
           </Typography>
         )}
         <Button
-          title="Stake"
           variant="contained"
           color="primary"
           onClick={handleStake}
           disabled={isButtonDisabled}
+          aria-label={submitAccessibleName}
+          aria-describedby={describedBy('stake-balance-value', 'stake-status', showUnstakeWarning ? 'stake-network-warning' : null)}
           sx={{
             height: '58px',
             width: '100%',

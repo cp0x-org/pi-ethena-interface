@@ -1,5 +1,8 @@
 import { SyntheticEvent } from 'react';
 
+// third party
+import { useIntl } from 'react-intl';
+
 // material-ui
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
@@ -50,6 +53,7 @@ const animation: KeyedObject = {
 // ==============================|| SNACKBAR ||============================== //
 
 export default function Snackbar() {
+  const intl = useIntl();
   const dispatch = useDispatch();
   const snackbar = useSelector((state) => state.snackbar);
   const { actionButton, anchorOrigin, alert, close, message, open, transition, variant, severity } = snackbar;
@@ -75,9 +79,15 @@ export default function Snackbar() {
           action={
             <>
               <Button size="small" onClick={handleClose}>
-                UNDO
+                {intl.formatMessage({ id: 'app.common.undo', defaultMessage: 'UNDO' })}
               </Button>
-              <IconButton size="small" aria-label="close" color="inherit" onClick={handleClose} sx={{ mt: 0.25, mb: 0.5 }}>
+              <IconButton
+                size="small"
+                aria-label={intl.formatMessage({ id: 'app.common.closeNotification', defaultMessage: 'Close notification' })}
+                color="inherit"
+                onClick={handleClose}
+                sx={{ mt: 0.25, mb: 0.5 }}
+              >
                 <CloseIcon fontSize="small" />
               </IconButton>
             </>
@@ -108,7 +118,7 @@ export default function Snackbar() {
                       color: alert.color === 'success' || alert.color === 'warning' ? 'common.black' : 'common.white'
                     }}
                   >
-                    UNDO
+                    {intl.formatMessage({ id: 'app.common.undo', defaultMessage: 'UNDO' })}
                   </Button>
                 )}
                 {close !== false && (
@@ -117,7 +127,7 @@ export default function Snackbar() {
                       color: alert.color === 'success' || alert.color === 'warning' ? 'common.black' : 'common.white'
                     }}
                     size="small"
-                    aria-label="close"
+                    aria-label={intl.formatMessage({ id: 'app.common.closeNotification', defaultMessage: 'Close notification' })}
                     onClick={handleClose}
                   >
                     <CloseIcon fontSize="small" />

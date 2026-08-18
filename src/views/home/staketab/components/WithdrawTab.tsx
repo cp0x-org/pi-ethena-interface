@@ -2,6 +2,7 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import { MenuItem, Typography } from '@mui/material';
 import React, { useCallback, useMemo } from 'react';
+import { useIntl } from 'react-intl';
 import { useAccount } from 'wagmi';
 
 import { useTheme } from '@mui/material/styles';
@@ -11,6 +12,7 @@ import { useCooldownInfo } from '../hooks/useCooldownInfo';
 import { useUnstakeTokenSelection } from '../hooks/useUnstakeTokenSelection';
 import { useWithdrawTransactions } from '../hooks/useWithdrawTransactions';
 import { useBalanceRefresh } from 'contexts/BalanceRefreshContext';
+import { visuallyHidden } from 'utils/a11y';
 
 interface Props {
   balances: BalancesData;
@@ -18,6 +20,7 @@ interface Props {
 
 const WithdrawTab = ({ balances }: Props) => {
   const theme = useTheme();
+  const intl = useIntl();
   const { address: userAddress } = useAccount();
   const { refetchBalances } = useBalanceRefresh();
 
@@ -37,14 +40,33 @@ const WithdrawTab = ({ balances }: Props) => {
     onWithdrawConfirmed: handleWithdrawConfirmed
   });
 
-  const buttonText = useMemo(() => {
-    if (withdrawTx.txState === 'submitting') return 'Preparing transaction...';
-    if (withdrawTx.txState === 'submitted') return 'Withdrawing...';
-    if (withdrawTx.txState === 'error') return 'Withdraw failed - retry';
-    if (isCooldownActive) return 'Cooldown in progress';
-    if (!underlyingAmount || underlyingAmount === 0n) return 'No funds to withdraw';
-    return 'Withdraw';
+  // The button state is derived separately from its label so that translated copy
+  // never has to be compared against English literals.
+  const buttonState = useMemo(() => {
+    if (withdrawTx.txState === 'submitting') return 'preparing' as const;
+    if (withdrawTx.txState === 'submitted') return 'withdrawing' as const;
+    if (withdrawTx.txState === 'error') return 'retry' as const;
+    if (isCooldownActive) return 'cooldown' as const;
+    if (!underlyingAmount || underlyingAmount === 0n) return 'noFunds' as const;
+    return 'submit' as const;
   }, [isCooldownActive, underlyingAmount, withdrawTx.txState]);
+
+  const buttonText = useMemo(() => {
+    switch (buttonState) {
+      case 'preparing':
+        return intl.formatMessage({ id: 'app.withdraw.preparing', defaultMessage: 'Preparing transaction...' });
+      case 'withdrawing':
+        return intl.formatMessage({ id: 'app.withdraw.withdrawing', defaultMessage: 'Withdrawing...' });
+      case 'retry':
+        return intl.formatMessage({ id: 'app.withdraw.retry', defaultMessage: 'Withdraw failed - retry' });
+      case 'cooldown':
+        return intl.formatMessage({ id: 'app.withdraw.cooldownInProgress', defaultMessage: 'Cooldown in progress' });
+      case 'noFunds':
+        return intl.formatMessage({ id: 'app.withdraw.noFunds', defaultMessage: 'No funds to withdraw' });
+      default:
+        return intl.formatMessage({ id: 'app.withdraw.submit', defaultMessage: 'Withdraw' });
+    }
+  }, [buttonState, intl]);
 
   const isButtonDisabled = useMemo(() => {
     if (!userAddress) return true;
@@ -68,6 +90,19 @@ const WithdrawTab = ({ balances }: Props) => {
 
     return cooldownMessage;
   };
+
+  // Rendered label of the submit button, reused to derive its accessible name.
+  const submitLabel =
+    isCooldownActive && timeRemainingSeconds > 0
+      ? intl.formatMessage(
+          { id: 'app.withdraw.cooldownEndsIn', defaultMessage: 'Cooldown ends in {duration}' },
+          { duration: formatDuration(timeRemainingSeconds) }
+        )
+      : buttonText;
+  const submitAccessibleName =
+    buttonState === 'submit'
+      ? intl.formatMessage({ id: 'app.withdraw.submitToken', defaultMessage: 'Withdraw {symbol}' }, { symbol: tokenMeta.underlyingSymbol })
+      : undefined;
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, padding: 0 }}>
@@ -103,19 +138,25 @@ const WithdrawTab = ({ balances }: Props) => {
             }}
           >
             <Typography variant="body2" color="text.main" fontWeight="bold">
-              Withdraw
+              {intl.formatMessage({ id: 'app.withdraw.heading', defaultMessage: 'Withdraw' })}
             </Typography>
-            <Typography variant="body2">Cooldowned amount:</Typography>
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="body2">
+              {intl.formatMessage({ id: 'app.withdraw.cooldownedAmount', defaultMessage: 'Cooldowned amount:' })}
+            </Typography>
+            <Typography id="stake-withdraw-status" variant="caption" color="text.secondary">
               {renderStatus()}
             </Typography>
           </Box>
           <Box sx={{ paddingRight: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }} />
         </Box>
 
+        <Box component="span" id="stake-withdraw-token-label" sx={visuallyHidden}>
+          {intl.formatMessage({ id: 'app.withdraw.tokenLabel', defaultMessage: 'Token to withdraw' })}
+        </Box>
         <StyledSelect
           id="withdrawToken"
           name="withdrawToken"
+          labelId="stake-withdraw-token-label"
           value={unstakeTokenAddress}
           onChange={(event) => handleTokenAddressChange(event.target.value as string)}
           variant="outlined"
@@ -147,10 +188,10 @@ const WithdrawTab = ({ balances }: Props) => {
             margin: '10px 0'
           }}
         >
-          <Typography variant="h4" fontWeight="normal">
-            Withdrawable
+          <Typography id="stake-withdrawable-label" variant="h4" component="p" fontWeight="normal">
+            {intl.formatMessage({ id: 'app.withdraw.withdrawable', defaultMessage: 'Withdrawable' })}
           </Typography>
-          <Typography variant="h4" fontWeight="normal" textAlign="right">
+          <Typography id="stake-withdrawable-value" variant="h4" component="p" fontWeight="normal" textAlign="right">
             {formattedUnderlyingAmount} {tokenMeta.underlyingSymbol}
           </Typography>
         </Box>
@@ -160,6 +201,8 @@ const WithdrawTab = ({ balances }: Props) => {
           color="primary"
           onClick={handleWithdraw}
           disabled={isButtonDisabled}
+          aria-label={submitAccessibleName}
+          aria-describedby="stake-withdrawable-label stake-withdrawable-value stake-withdraw-status"
           sx={{
             height: '58px',
             width: '100%',
@@ -169,7 +212,7 @@ const WithdrawTab = ({ balances }: Props) => {
             fontWeight: 700
           }}
         >
-          {isCooldownActive && timeRemainingSeconds > 0 ? `Cooldown ends in ${formatDuration(timeRemainingSeconds)}` : buttonText}
+          {submitLabel}
         </Button>
       </Box>
     </Box>

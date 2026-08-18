@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useIntl } from 'react-intl';
 import { useReadContract } from 'wagmi';
 
 import { UnstakeTokenMeta } from './useUnstakeTokenSelection';
@@ -10,6 +11,7 @@ interface UseCooldownInfoParams {
 }
 
 export const useCooldownInfo = ({ tokenMeta, userAddress }: UseCooldownInfoParams) => {
+  const intl = useIntl();
   const [nowSeconds, setNowSeconds] = useState(() => Math.floor(Date.now() / 1000));
 
   const { data, refetch, isFetching } = useReadContract({
@@ -52,15 +54,23 @@ export const useCooldownInfo = ({ tokenMeta, userAddress }: UseCooldownInfoParam
     return parts.join(' ');
   };
   const cooldownMessage = useMemo(() => {
-    if (!userAddress) return 'Connect wallet to check cooldown status.';
-    if (!cooldownEnd || underlyingAmount === 0n) return 'No cooldown started yet.';
+    if (!userAddress)
+      return intl.formatMessage({ id: 'app.cooldown.connectWallet', defaultMessage: 'Connect wallet to check cooldown status.' });
+    if (!cooldownEnd || underlyingAmount === 0n)
+      return intl.formatMessage({ id: 'app.cooldown.notStarted', defaultMessage: 'No cooldown started yet.' });
 
     if (timeRemainingSeconds > 0) {
-      return `Cooldown ends in ${formatDuration(timeRemainingSeconds)} for ${formattedUnderlyingAmount} ${tokenMeta.underlyingSymbol}.`;
+      return intl.formatMessage(
+        { id: 'app.cooldown.endsInFor', defaultMessage: 'Cooldown ends in {duration} for {amount} {symbol}.' },
+        { duration: formatDuration(timeRemainingSeconds), amount: formattedUnderlyingAmount, symbol: tokenMeta.underlyingSymbol }
+      );
     }
 
-    return `Cooldown complete. ${formattedUnderlyingAmount} ${tokenMeta.underlyingSymbol} ready to withdraw.`;
-  }, [cooldownEnd, formattedUnderlyingAmount, timeRemainingSeconds, tokenMeta.underlyingSymbol, underlyingAmount, userAddress]);
+    return intl.formatMessage(
+      { id: 'app.cooldown.complete', defaultMessage: 'Cooldown complete. {amount} {symbol} ready to withdraw.' },
+      { amount: formattedUnderlyingAmount, symbol: tokenMeta.underlyingSymbol }
+    );
+  }, [cooldownEnd, formattedUnderlyingAmount, intl, timeRemainingSeconds, tokenMeta.underlyingSymbol, underlyingAmount, userAddress]);
 
   return {
     cooldownEnd,

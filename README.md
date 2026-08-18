@@ -1,3 +1,5 @@
+Languages: [English](./README.md) | [中文](./README_CH.md)
+
 # Permissionless Ethena Interface by cp0x
 
 An open-source, permissionless interface for the Ethena protocol designed to be fully permissionless and enable direct, unrestricted interaction with smart contracts.
